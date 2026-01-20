@@ -1,4 +1,3 @@
-
 from flask import Flask, render_template, request, jsonify
 import csv
 import os
@@ -7,7 +6,25 @@ from datetime import datetime
 app = Flask(__name__)
 
 CSV_FILE = "orders.csv"
-FIELDNAMES = ["id", "name", "cheese", "status", "timestamp"]
+
+# Added option fields
+OPTIONS = [
+    "tomateos",
+    "saute_onions",
+    "gherkins",
+    "jalapeno",
+    "cheese",
+    "lettuce",
+    "chefs_special",
+    "peri_peri_lemon_and_herb",
+    "burger_sauce",
+    "ketchup",
+    "bbq",
+    "mayo",
+    "peri_peri_medium"
+]
+
+FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
 
 if not os.path.exists(CSV_FILE):
     with open(CSV_FILE, "w", newline="") as f:
@@ -41,13 +58,16 @@ def add_order():
     data = request.json
     orders = read_orders()
     order_id = len(orders) + 1
-    orders.append({
+    # set each option to "True"/"False" string for CSV consistency
+    opts = {opt: str(bool(data.get(opt))) for opt in OPTIONS}
+    order = {
         "id": order_id,
         "name": data["name"],
-        "cheese": data["cheese"],
+        **opts,
         "status": "pending",
         "timestamp": datetime.now().isoformat()
-    })
+    }
+    orders.append(order)
     write_orders(orders)
     return {"success": True}
 

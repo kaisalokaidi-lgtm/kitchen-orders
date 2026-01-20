@@ -1,5 +1,5 @@
-id,name,cheese,status,timestamp
-1,Kais,True,ready,2026-01-20T20:26:20.531568
-2,hajar,False,ready,2026-01-20T20:28:15.602725
-3,mujahid,True,ready,2026-01-20T20:36:27.836987
-4,sarah,True,pending,2026-01-20T20:36:59.764438
+id,name,tomateos,saute_onions,gherkins,jalapeno,cheese,lettuce,chefs_special,peri_peri_lemon_and_herb,burger_sauce,ketchup,bbq,mayo,peri_peri_medium,status,timestamp
+1,sarah,,,,,True,,,,,,,,,ready,2026-01-20T20:46:24.757920
+2,kais,False,False,False,False,False,False,False,False,False,False,False,False,False,ready,2026-01-20T21:48:44.437625
+3,kais,True,True,True,False,False,False,False,False,False,False,False,True,True,ready,2026-01-20T21:48:56.247836
+4,Sarah,True,True,True,False,True,False,True,False,False,False,False,False,False,ready,2026-01-20T21:49:53.706613

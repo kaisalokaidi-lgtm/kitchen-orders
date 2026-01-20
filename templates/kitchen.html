@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,21 +8,41 @@
 <h2>👨‍🍳 Kitchen Orders</h2>
 <table class="table mt-4">
 <thead>
-<tr><th>Name</th><th>Cheese</th><th>Status</th><th></th></tr>
+<tr><th>Name</th><th>Options</th><th>Status</th><th></th></tr>
 </thead>
 <tbody id="orders"></tbody>
 </table>
 <script>
+const OPTION_LABELS = {
+    "tomateos": "tomateos 🍅",
+    "saute_onions": "saute onions 🧅",
+    "gherkins": "gherkins 🥒",
+    "jalapeno": "jalapeno 🌶️",
+    "cheese": "cheese 🧀",
+    "lettuce": "lettuce 🥬",
+    "chefs_special": "chefs special 👨‍🍳",
+    "peri_peri_lemon_and_herb": "peri peri lemon and herb 🍋🌿",
+    "burger_sauce": "burger sauce 🥫",
+    "ketchup": "ketchup 🍅",
+    "bbq": "BBQ 🔥",
+    "mayo": "mayo 🧴",
+    "peri_peri_medium": "peri peri medium 🌶️"
+};
+
 async function loadOrders() {
     const res = await fetch("/api/orders");
     const orders = await res.json();
     const tbody = document.getElementById("orders");
     tbody.innerHTML = "";
     orders.forEach(o => {
+        // build badges for selected options (CSV stores "True"/"False")
+        const badges = Object.keys(OPTION_LABELS).filter(k => o[k] === "True").map(k =>
+            `<span class="badge bg-secondary me-1">${OPTION_LABELS[k]}</span>`
+        ).join("");
         tbody.innerHTML += `
         <tr>
             <td>${o.name}</td>
-            <td>${o.cheese === "True" ? "🧀" : "❌"}</td>
+            <td>${badges || "—"}</td>
             <td>${o.status}</td>
             <td>${o.status === "pending" ? `<button class="btn btn-success btn-sm" onclick="markReady(${o.id})">Ready</button>` : ""}</td>
         </tr>`;
