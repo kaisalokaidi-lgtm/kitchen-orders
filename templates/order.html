@@ -1,95 +1,142 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Burger Order</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        @media (max-width: 576px) {
+            .container {
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+        }
+        .form-check {
+            padding: 0;
+            margin-bottom: 0.5rem;
+        }
+        .form-check-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .form-check-label {
+            user-select: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            border: 2px solid #dee2e6;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            width: 100%;
+            font-weight: 500;
+        }
+        .form-check-label:hover {
+            background-color: #f8f9fa;
+            border-color: #adb5bd;
+        }
+        .form-check-input:checked + .form-check-label {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+        }
+        .form-check-input:checked + .form-check-label::before {
+            content: '✓ ';
+            margin-right: 8px;
+            font-weight: bold;
+        }
+    </style>
 </head>
-<body class="container py-5">
-<h2>🍔 Burger Order</h2>
+<body class="container py-3 py-md-5">
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>🍔 Burger Order</h2>
+    <div>
+        <span class="me-3">Welcome, <strong>{{ user.name }}</strong></span>
+        <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
+    </div>
+</div>
 <form id="orderForm" class="mt-4">
-    <div class="mb-3">
-        <label class="form-label">Your name</label>
-        <input class="form-control" id="name" required>
-    </div>
+    <input type="hidden" id="customerName" value="{{ user.name }}">
 
-    <!-- Add option checkboxes (labels updated with emojis) -->
-    <div class="mb-3">
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="tomateos">
-            <label class="form-check-label">tomateos 🍅</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="saute_onions">
-            <label class="form-check-label">saute onions 🧅</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="gherkins">
-            <label class="form-check-label">gherkins 🥒</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="jalapeno">
-            <label class="form-check-label">jalapeno 🌶️</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="cheese">
-            <label class="form-check-label">cheese 🧀</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="lettuce">
-            <label class="form-check-label">lettuce 🥬</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="chefs_special">
-            <label class="form-check-label">chefs special 👨‍🍳</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="peri_peri_lemon_and_herb">
-            <label class="form-check-label">peri peri lemon and herb 🍋🌿</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="burger_sauce">
-            <label class="form-check-label">burger sauce 🥫</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="ketchup">
-            <label class="form-check-label">ketchup 🍅</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="bbq">
-            <label class="form-check-label">BBQ 🔥</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="mayo">
-            <label class="form-check-label">mayo 🧴</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="peri_peri_medium">
-            <label class="form-check-label">peri peri medium 🌶️</label>
-        </div>
-    </div>
+    <!-- Ingredient categories will be loaded dynamically -->
+    <div id="salads-section"></div>
+    <div id="sauces-section"></div>
+    <div id="drinks-section"></div>
 
-    <button class="btn btn-primary">Place Order</button>
+    <button class="btn btn-primary w-100 w-sm-auto">Place Order</button>
 </form>
 <div id="success" class="alert alert-success mt-3 d-none">Order placed!</div>
 <script>
+let ingredients = [];
+
+async function loadIngredients() {
+    const res = await fetch("/api/ingredients");
+    ingredients = await res.json();
+    
+    renderCategory("salads", "🥗 Salads", "salads-section", "checkbox");
+    renderCategory("sauces", "🍯 Sauces", "sauces-section", "checkbox");
+    renderCategory("drinks", "🥤 Drinks", "drinks-section", "radio");
+}
+
+function renderCategory(category, title, sectionId, inputType) {
+    const categoryIngredients = ingredients.filter(i => i.category === category);
+    if (categoryIngredients.length === 0) return;
+    
+    const section = document.getElementById(sectionId);
+    let html = `<div class="mb-4"><h5 class="mb-3">${title}</h5>`;
+    
+    categoryIngredients.forEach(ing => {
+        const key = ing.name.toLowerCase().replace(/ /g, '_');
+        const inputName = inputType === 'radio' ? 'drink' : '';
+        const nameAttr = inputName ? `name="${inputName}"` : '';
+        const valueAttr = inputType === 'radio' ? `value="${key}"` : '';
+        
+        html += `
+        <div class="form-check">
+            <input class="form-check-input" type="${inputType}" id="${key}" ${nameAttr} ${valueAttr}>
+            <label class="form-check-label" for="${key}">${ing.name} ${ing.emoji}</label>
+        </div>`;
+    });
+    
+    // Add "No drink" option for drinks
+    if (category === 'drinks') {
+        html += `
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="drink" id="no_drink" value="" checked>
+            <label class="form-check-label" for="no_drink">No drink</label>
+        </div>`;
+    }
+    
+    html += '</div>';
+    section.innerHTML = html;
+}
+
 document.getElementById("orderForm").addEventListener("submit", async e => {
     e.preventDefault();
-    const payload = {
-        name: document.getElementById("name").value,
-        tomateos: document.getElementById("tomateos").checked,
-        saute_onions: document.getElementById("saute_onions").checked,
-        gherkins: document.getElementById("gherkins").checked,
-        jalapeno: document.getElementById("jalapeno").checked,
-        cheese: document.getElementById("cheese").checked,
-        lettuce: document.getElementById("lettuce").checked,
-        chefs_special: document.getElementById("chefs_special").checked,
-        peri_peri_lemon_and_herb: document.getElementById("peri_peri_lemon_and_herb").checked,
-        burger_sauce: document.getElementById("burger_sauce").checked,
-        ketchup: document.getElementById("ketchup").checked,
-        bbq: document.getElementById("bbq").checked,
-        mayo: document.getElementById("mayo").checked,
-        peri_peri_medium: document.getElementById("peri_peri_medium").checked
-    };
+    
+    const payload = { name: document.getElementById("customerName").value };
+    
+    // Collect all ingredient selections
+    ingredients.forEach(ing => {
+        const key = ing.name.toLowerCase().replace(/ /g, '_');
+        if (ing.category === 'drinks') {
+            const selectedDrink = document.querySelector('input[name="drink"]:checked')?.value || '';
+            payload[key] = selectedDrink === key;
+        } else {
+            const checkbox = document.getElementById(key);
+            payload[key] = checkbox ? checkbox.checked : false;
+        }
+    });
+    
     await fetch("/api/orders", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -97,7 +144,10 @@ document.getElementById("orderForm").addEventListener("submit", async e => {
     });
     document.getElementById("success").classList.remove("d-none");
     e.target.reset();
+    setTimeout(() => document.getElementById("success").classList.add("d-none"), 2000);
 });
+
+loadIngredients();
 </script>
 </body>
 </html>
