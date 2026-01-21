@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_socketio import SocketIO, emit
 from functools import wraps
 from datetime import datetime
 import sqlite3
@@ -7,6 +8,7 @@ import database as db
 
 app = Flask(__name__)
 app.secret_key = "burger-order-secret-key-change-this-in-production"
+socketio = SocketIO(app)
 
 # Setup the database
 db.setup_database()
@@ -30,6 +32,13 @@ def admin_required(f):
             return redirect(url_for('order_page'))
         return f(*args, **kwargs)
     return decorated_function
+
+def notify_clients(order_id=None):
+    """Notifies clients about order updates."""
+    if order_id:
+        socketio.emit('order_updated', {'order_id': order_id})
+    else:
+        socketio.emit('update_orders')
 
 @app.route("/")
 @login_required
@@ -105,6 +114,7 @@ def add_order():
 
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
     
     return {"success": True}
 
@@ -115,6 +125,7 @@ def mark_ready(order_id):
     conn.execute('UPDATE orders SET status = "ready" WHERE id = ?', (order_id,))
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
     return {"success": True}
 
 @app.route("/api/orders/<int:order_id>/progress", methods=["GET"])
@@ -139,6 +150,7 @@ def update_progress(order_id):
         
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
     return {"success": True}
 
 @app.route("/api/orders/<int:order_id>/start", methods=["POST"])
@@ -147,6 +159,7 @@ def start_order(order_id):
     conn.execute('UPDATE orders SET status = "preparing" WHERE id = ?', (order_id,))
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
     return {"success": True}
 
 @app.route("/api/delivery/ready-orders", methods=["GET"])
@@ -176,6 +189,7 @@ def collect_order(order_id):
                  (user['name'], datetime.now().isoformat(), order_id))
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
     return {"success": True}
 
 @app.route("/api/orders/<int:order_id>/deliver", methods=["POST"])
@@ -194,6 +208,8 @@ def deliver_order(order_id):
 
     conn.commit()
     conn.close()
+    notify_clients(order_id) # Emit specific order update
+    notify_clients() # Emit general update as well, as delivered orders might affect overall counts or history
     return {"success": True}
 
 @app.route("/api/orders/delivered", methods=["GET"])
@@ -245,6 +261,7 @@ def add_ingredient():
     
     new_ingredient = db.get_ingredients() # a bit inefficient but fine for now
     new_ingredient = next((ing for ing in new_ingredient if ing['id'] == new_id), None)
+    notify_clients()
 
     return {"success": True, "ingredient": new_ingredient}
 
@@ -257,6 +274,7 @@ def update_ingredient(ingredient_id):
                    (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), ingredient_id))
     conn.commit()
     conn.close()
+    notify_clients()
     return {"success": True}
 
 @app.route("/api/ingredients/<int:ingredient_id>", methods=["DELETE"])
@@ -266,6 +284,7 @@ def delete_ingredient(ingredient_id):
     conn.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
     conn.commit()
     conn.close()
+    notify_clients()
     return {"success": True}
 
 @app.route("/api/login", methods=["POST"])
@@ -298,6 +317,7 @@ def add_user():
                    (data["username"], data["password"], data.get("role", "user"), data["name"], data.get("gender", "male"), is_delivery))
     conn.commit()
     conn.close()
+    notify_clients()
     return {"success": True}
 
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
@@ -307,6 +327,7 @@ def delete_user(user_id):
     conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
     conn.commit()
     conn.close()
+    notify_clients()
     return {"success": True}
 
 @app.route("/api/order-settings", methods=["GET"])
@@ -353,8 +374,16 @@ def update_order_settings():
 
     conn.commit()
     conn.close()
+    notify_clients()
     return {"success": True}
 
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)

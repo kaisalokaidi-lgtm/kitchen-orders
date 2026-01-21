@@ -146,8 +146,22 @@ def get_user_by_username_and_password(username, password):
 def get_orders():
     conn = get_db_connection()
     orders = conn.execute('SELECT * FROM orders').fetchall()
+    
+    orders_list = []
+    for o in orders:
+        order_dict = dict(o)
+        ingredients = get_order_ingredients(o['id'])
+        for ingredient in ingredients:
+            order_dict[ingredient['name'].lower().replace(' ', '_')] = "True"
+        orders_list.append(order_dict)
     conn.close()
-    return [dict(row) for row in orders]
+    return orders_list
+
+def get_order_ingredients(order_id):
+    conn = get_db_connection()
+    ingredients = conn.execute('SELECT i.name FROM ingredients i JOIN order_ingredients oi ON i.id = oi.ingredient_id WHERE oi.order_id = ?', (order_id,)).fetchall()
+    conn.close()
+    return [dict(row) for row in ingredients]
 
 def get_order_by_id(order_id):
     conn = get_db_connection()

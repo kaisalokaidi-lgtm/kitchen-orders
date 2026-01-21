@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kitchen</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         @media (max-width: 768px) {
             .container {
@@ -166,93 +167,11 @@ async function loadOrders() {
     const outForDeliveryOrders = orders.filter(o => o.status === "out_for_delivery");
     const deliveredOrders = orders.filter(o => o.status === "delivered");
 
-    await renderOrders(pendingOrders, "pending-orders", false, "pending");
-    await renderOrders(preparingOrders, "preparing-orders", true, "preparing");
-    await renderOrders(readyOrders, "ready-orders", false, "ready");
-    await renderOutForDeliveryOrders(outForDeliveryOrders);
-    await renderDeliveredOrders(deliveredOrders);
-}
-
-async function renderOrders(orders, tbodyId, allowExpand, status) {
-    const tbody = document.getElementById(tbodyId);
-    tbody.innerHTML = "";
-    
-    if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders</td></tr>`;
-        return;
-    }
-    
-    for (const o of orders) {
-        // Find all keys in the order that are "True" and have labels
-        const selectedIngredients = Object.keys(o).filter(k => 
-            o[k] === "True" && OPTION_LABELS[k]
-        );
-        const badges = selectedIngredients.map(k =>
-            `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
-        ).join("");
-        
-        const isExpanded = expandedOrderId === o.id;
-        
-        // Load progress if expanded
-        if (isExpanded && allowExpand && !orderProgressCache[o.id]) {
-            const progressRes = await fetch(`/api/orders/${o.id}/progress`);
-            const progress = await progressRes.json();
-            orderProgressCache[o.id] = progress.map(p => p.ingredient);
-        }
-        
-        const checkedIngredients = orderProgressCache[o.id] || [];
-        const rowClass = allowExpand ? 'order-row' : '';
-        const rowClick = allowExpand ? `onclick="toggleOrder('${o.id}')"` : '';
-        
-        // Determine action button
-        let actionButton = '';
-        if (status === 'pending') {
-            actionButton = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button>`;
-        } else if (status === 'ready') {
-            actionButton = new Date(o.timestamp).toLocaleTimeString();
-        }
-        
-        tbody.innerHTML += `
-        <tr class="${rowClass}" ${rowClick}>
-            <td><strong>#${o.id}</strong></td>
-            <td>${o.person_type || '—'}</td>
-            <td>#${o.order_count || '1'}</td>
-            <td>${badges || "—"}</td>
-            <td>${actionButton}</td>
-        </tr>
-        ${isExpanded && allowExpand ? `
-        <tr>
-            <td colspan="5" class="p-0">
-                <div class="order-details">
-                    <h6 class="mb-3">📋 Checklist for Order #${o.id} (${o.person_type || 'Unknown'}):</h6>
-                    ${o.additional_instructions ? `<div class="alert alert-info mb-3"><strong>📝 Instructions:</strong> ${o.additional_instructions}</div>` : ''}
-                    ${selectedIngredients.length > 0 ? selectedIngredients.map((k, idx) => {
-                        const isChecked = checkedIngredients.includes(k);
-                        return `
-                        <div class="ingredient-check ${isChecked ? 'checked' : ''}" id="check-${o.id}-${idx}">
-                            <input type="checkbox" id="ingredient-${o.id}-${idx}" data-ingredient="${k}" ${isChecked ? 'checked' : ''} onchange="updateCheck('${o.id}', '${k}', ${idx})">
-                            <label for="ingredient-${o.id}-${idx}">${OPTION_LABELS[k]}</label>
-                        </div>
-                    `}).join("") : "<p class='text-muted'>No special ingredients</p>"}
-                    <div class="mt-3">
-                        <button class="btn btn-success" onclick="markReady(${o.id})">✓ Mark as Ready</button>
-                    </div>
-                </div>
-            </td>
-        </tr>
-        ` : ""}`;
-    }
-}
-
-async function startOrder(orderId) {
-    await fetch(`/api/orders/${orderId}/start`, { method: "POST" });
-    expandedOrderId = orderId; // Auto-expand the order
-    await loadOrders();
-}
-
-async function toggleOrder(orderId) {
-    expandedOrderId = expandedOrderId === orderId ? null : orderId;
-    await loadOrders();
+    renderOrders(pendingOrders, "pending-orders", false, "pending");
+    renderOrders(preparingOrders, "preparing-orders", true, "preparing");
+    renderOrders(readyOrders, "ready-orders", false, "ready");
+    renderOrders(outForDeliveryOrders, "out-for-delivery-orders", false, "out_for_delivery");
+    renderOrders(deliveredOrders, "delivered-orders", false, "delivered");
 }
 
 async function updateCheck(orderId, ingredient, index) {
@@ -286,85 +205,192 @@ async function updateCheck(orderId, ingredient, index) {
     } else {
         orderProgressCache[orderId] = orderProgressCache[orderId].filter(i => i !== ingredient);
     }
-    
-    // Reload to update status
-    await loadOrders();
 }
+
 async function markReady(id) {
     await fetch(`/api/orders/${id}/ready`, { method: "POST" });
-    loadOrders();
+    await updateOrderDisplay(id); // Targeted update for the single order
 }
 
-async function renderOutForDeliveryOrders(orders) {
-    const tbody = document.getElementById("out-for-delivery-orders");
-    tbody.innerHTML = "";
+async function startOrder(orderId) {
+    await fetch(`/api/orders/${orderId}/start`, { method: "POST" });
+    expandedOrderId = parseInt(orderId); // Convert to integer
+    await updateOrderDisplay(orderId); // Targeted update for the single order
+}
 
-    if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center">No orders out for delivery</td></tr>`;
+// Function to render a single order row (main row)
+function renderOrderRow(o, allowExpand, status, selectedIngredients, actionButton) {
+    const rowClass = allowExpand ? 'order-row' : '';
+    const rowClick = allowExpand ? `onclick="toggleOrder('${o.id}')"` : '';
+    const badges = selectedIngredients.map(k =>
+        `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
+    ).join("");
+
+    return `
+    <tr class="${rowClass}" ${rowClick} id="order-main-row-${o.id}">
+        <td><strong>#${o.id}</strong></td>
+        <td>${o.person_type || '—'}</td>
+        <td>#${o.order_count || '1'}</td>
+        <td>${badges || "—"}</td>
+        <td>${actionButton}</td>
+    </tr>`;
+}
+
+// Function to render expanded order details (checklist)
+function renderExpandedOrderDetails(o, selectedIngredients, checkedIngredients) {
+    return `
+    <tr id="order-details-row-${o.id}">
+        <td colspan="5" class="p-0">
+            <div class="order-details">
+                <h6 class="mb-3">📋 Checklist for Order #${o.id} (${o.person_type || 'Unknown'}):</h6>
+                ${o.additional_instructions ? `<div class="alert alert-info mb-3"><strong>📝 Instructions:</strong> ${o.additional_instructions}</div>` : ''}
+                ${selectedIngredients.length > 0 ? selectedIngredients.map((k, idx) => {
+                    const isChecked = checkedIngredients.includes(k);
+                    return `
+                    <div class="ingredient-check ${isChecked ? 'checked' : ''}" id="check-${o.id}-${idx}">
+                        <input type="checkbox" id="ingredient-${o.id}-${idx}" data-ingredient="${k}" ${isChecked ? 'checked' : ''} onchange="updateCheck('${o.id}', '${k}', ${idx})">
+                        <label for="ingredient-${o.id}-${idx}">${OPTION_LABELS[k]}</label>
+                    </div>
+                `}).join("") : "<p class='text-muted'>No special ingredients</p>"}
+                <div class="mt-3">
+                    <button class="btn btn-success" onclick="markReady(${o.id})">✓ Mark as Ready</button>
+                </div>
+            </div>
+        </td>
+    </tr>`;
+}
+
+// New function for targeted update of a single order
+async function updateOrderDisplay(orderId) {
+    const res = await fetch(`/api/orders`);
+    const allOrders = await res.json();
+    const updatedOrder = allOrders.find(o => o.id === orderId);
+
+    if (!updatedOrder) {
+        // Order might have been delivered or deleted, remove from DOM
+        document.getElementById(`order-main-row-${orderId}`)?.remove();
+        document.getElementById(`order-details-row-${orderId}`)?.remove();
         return;
     }
 
+    // Determine target tbody based on updated status
+    let targetTbodyId;
+    let allowExpand = false;
+    if (updatedOrder.status === "pending") {
+        targetTbodyId = "pending-orders";
+    } else if (updatedOrder.status === "preparing") {
+        targetTbodyId = "preparing-orders";
+        allowExpand = true;
+    } else if (updatedOrder.status === "ready") {
+        targetTbodyId = "ready-orders";
+    } else if (updatedOrder.status === "out_for_delivery") {
+        targetTbodyId = "out-for-delivery-orders";
+    } else if (updatedOrder.status === "delivered") {
+        targetTbodyId = "delivered-orders";
+    }
+
+    const targetTbody = document.getElementById(targetTbodyId);
+    if (!targetTbody) return;
+
+    // Remove existing rows for this order
+    document.getElementById(`order-main-row-${orderId}`)?.remove();
+    document.getElementById(`order-details-row-${orderId}`)?.remove();
+
+    // Prepare data for rendering
+    const selectedIngredients = Object.keys(updatedOrder).filter(k =>
+        updatedOrder[k] === "True" && OPTION_LABELS[k]
+    );
+
+    const isExpanded = expandedOrderId === updatedOrder.id;
+
+    // Fetch progress if expanded
+    if (isExpanded && allowExpand) {
+        const progressRes = await fetch(`/api/orders/${updatedOrder.id}/progress`);
+        const progress = await progressRes.json();
+        orderProgressCache[updatedOrder.id] = progress.map(p => p.ingredient);
+    }
+    const checkedIngredients = orderProgressCache[updatedOrder.id] || [];
+
+    let actionButton = '';
+    if (updatedOrder.status === 'pending') {
+        actionButton = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${updatedOrder.id})">Start Preparing</button>`;
+    } else if (updatedOrder.status === 'ready') {
+        actionButton = new Date(updatedOrder.timestamp).toLocaleTimeString();
+    }
+
+    // Render and append new rows
+    const newMainRow = renderOrderRow(updatedOrder, allowExpand, updatedOrder.status, selectedIngredients, actionButton);
+    targetTbody.insertAdjacentHTML('beforeend', newMainRow);
+
+    if (isExpanded && allowExpand) {
+        const newDetailsRow = renderExpandedOrderDetails(updatedOrder, selectedIngredients, checkedIngredients);
+        document.getElementById(`order-main-row-${orderId}`).insertAdjacentHTML('afterend', newDetailsRow);
+    }
+}
+
+async function toggleOrder(orderId) {
+    const numericOrderId = parseInt(orderId); // Convert to integer
+    expandedOrderId = expandedOrderId === numericOrderId ? null : numericOrderId;
+    await updateOrderDisplay(numericOrderId); // Update only the toggled order
+}
+
+async function renderOrders(orders, tbodyId, allowExpand, status) {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML = "";
+    
+    if (orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders</td></tr>`;
+        return;
+    }
+    
     for (const o of orders) {
-        const selectedIngredients = Object.keys(o).filter(k =>
+        const selectedIngredients = Object.keys(o).filter(k => 
             o[k] === "True" && OPTION_LABELS[k]
         );
-        const badges = selectedIngredients.map(k =>
-            `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
-        ).join("");
+        
+        const isExpanded = expandedOrderId === o.id;
+        
+        // Load progress if expanded - ALWAYS refetch to ensure freshness
+        if (isExpanded && allowExpand) {
+            const progressRes = await fetch(`/api/orders/${o.id}/progress`);
+            const progress = await progressRes.json();
+            orderProgressCache[o.id] = progress.map(p => p.ingredient);
+        }
+        
+        const checkedIngredients = orderProgressCache[o.id] || [];
+        
+        // Determine action button
+        let actionButton = '';
+        if (status === 'pending') {
+            actionButton = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button>`;
+        } else if (status === 'ready') {
+            actionButton = new Date(o.timestamp).toLocaleTimeString();
+        }
+        
+        // Render and append new rows
+        const newMainRow = renderOrderRow(o, allowExpand, status, selectedIngredients, actionButton);
+        tbody.insertAdjacentHTML('beforeend', newMainRow);
 
-        const collectedAt = o.collected_at ? new Date(o.collected_at).toLocaleString() : 'N/A';
-
-        tbody.innerHTML += `
-        <tr>
-            <td><strong>#${o.id}</strong></td>
-            <td>${o.person_type || '—'}</td>
-            <td>#${o.order_count || '1'}</td>
-            <td>${badges || "—"}</td>
-            <td>${o.collected_by || 'N/A'}</td>
-            <td>${collectedAt}</td>
-        </tr>`;
-    }
-}
-
-async function renderDeliveredOrders(orders) {
-    const tbody = document.getElementById("delivered-orders");
-    tbody.innerHTML = "";
-
-    if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center">No delivered orders</td></tr>`;
-        return;
-    }
-
-    // Show most recent 20
-    const recentOrders = orders.slice(-20).reverse();
-
-    for (const o of recentOrders) {
-        const selectedIngredients = Object.keys(o).filter(k =>
-            o[k] === "True" && OPTION_LABELS[k]
-        );
-        const badges = selectedIngredients.map(k =>
-            `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
-        ).join("");
-
-        const deliveredAt = o.delivered_at ? new Date(o.delivered_at).toLocaleString() : 'N/A';
-
-        tbody.innerHTML += `
-        <tr>
-            <td><strong>#${o.id}</strong></td>
-            <td>${o.person_type || '—'}</td>
-            <td>#${o.order_count || '1'}</td>
-            <td>${badges || "—"}</td>
-            <td>${o.collected_by || 'N/A'}</td>
-            <td>${deliveredAt}</td>
-        </tr>`;
+        if (isExpanded && allowExpand) {
+            const newDetailsRow = renderExpandedOrderDetails(o, selectedIngredients, checkedIngredients);
+            document.getElementById(`order-main-row-${o.id}`).insertAdjacentHTML('afterend', newDetailsRow);
+        }
     }
 }
 
 loadIngredientLabels().then(() => {
     loadOrders();
-    setInterval(loadOrders, 2000);
+    const socket = io();
+    socket.on('connect', () => {
+        console.log('Connected to socket.io server');
+    });
+    socket.on('update_orders', () => {
+        console.log('Received general update_orders event');
+        loadOrders(); // For general updates not covered by specific order_updated events
+    });
+    socket.on('order_updated', (data) => {
+        console.log('Received order_updated event for order:', data.order_id);
+        updateOrderDisplay(data.order_id);
+    });
 });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Burger Order</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body {
             max-width: 800px;
@@ -549,9 +550,6 @@ function setupOrderForm() {
     });
 }
 
-// Check status every 3 seconds
-setInterval(checkOrderStatus, 3000);
-
 {% if is_delivery %}
 // Delivery functions
 let previousReadyCount = 0;
@@ -701,35 +699,6 @@ document.getElementById('delivery-tab')?.addEventListener('shown.bs.tab', functi
     loadMyDeliveries();
 });
 
-// Refresh delivery data every 5 seconds
-// Always check ready orders for badge/notification, only refresh display if tab is active
-setInterval(() => {
-    const deliveryTab = document.getElementById('delivery-section');
-    if (deliveryTab && deliveryTab.classList.contains('active')) {
-        loadReadyOrders();
-        loadMyDeliveries();
-    } else {
-        // Still check for badge updates even when not on delivery tab
-        fetch("/api/delivery/ready-orders")
-            .then(res => res.json())
-            .then(orders => {
-                const badge = document.getElementById('delivery-badge');
-                if (orders.length > 0) {
-                    badge.textContent = orders.length;
-                    badge.classList.remove('d-none');
-                } else {
-                    badge.classList.add('d-none');
-                }
-
-                // Play sound if new orders became ready
-                if (orders.length > previousReadyCount && previousReadyCount > 0) {
-                    playNotificationSound();
-                }
-                previousReadyCount = orders.length;
-            })
-            .catch(e => console.error('Error checking ready orders:', e));
-    }
-}, 5000);
 {% endif %}
 
 // Order history function
@@ -771,6 +740,37 @@ function renderOrderHistory(orders) {
 
 // Load order history when collapse is shown
 document.getElementById('orderHistory')?.addEventListener('shown.bs.collapse', loadOrderHistory);
+
+// Initial load
+checkOrderStatus();
+
+// Websocket connection
+const socket = io();
+socket.on('connect', () => {
+    console.log('Connected to socket.io server');
+});
+socket.on('update_orders', () => {
+    console.log('Received general update_orders event');
+    checkOrderStatus();
+    if ({{ is_delivery }}) {
+        loadReadyOrders();
+        loadMyDeliveries();
+    }
+    if (document.getElementById('orderHistory').classList.contains('show')) {
+        loadOrderHistory();
+    }
+});
+socket.on('order_updated', (data) => {
+    console.log('Received order_updated event for order:', data.order_id);
+    checkOrderStatus(); // Update user's own order status
+    if ({{ is_delivery }}) {
+        loadReadyOrders(); // Refresh ready orders
+        loadMyDeliveries(); // Refresh my deliveries
+    }
+    if (document.getElementById('orderHistory').classList.contains('show')) {
+        loadOrderHistory(); // Refresh order history if open
+    }
+});
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
