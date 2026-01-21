@@ -153,7 +153,7 @@ def get_option_keys():
     return [ing["name"].lower().replace(" ", "_") for ing in ingredients]
 
 OPTIONS = get_option_keys()
-FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
+FIELDNAMES = ["id", "name", "person_type", "order_count", "additional_instructions"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
 
 if not os.path.exists(CSV_FILE):
     with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
@@ -173,7 +173,7 @@ def read_orders():
 
 def write_orders(orders):
     # Dynamically build fieldnames from current ingredients
-    current_fieldnames = ["id", "name"] + get_option_keys() + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
+    current_fieldnames = ["id", "name", "person_type", "order_count", "additional_instructions"] + get_option_keys() + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
     with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=current_fieldnames)
         writer.writeheader()
@@ -237,6 +237,20 @@ def add_order():
     
     data = request.json
     orders = read_orders()
+    users = read_users()
+    
+    # Get user info
+    user = next((u for u in users if u['id'] == session.get('user_id')), None)
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+    
+    # Map gender to person_type
+    gender_map = {"male": "Male", "female": "Female", "kid": "Child"}
+    person_type = gender_map.get(user.get('gender', 'male'), 'Male')
+    
+    # Calculate order count for this user
+    user_delivered_orders = [o for o in orders if o.get("name") == user.get("name") and o.get("status") == "delivered"]
+    order_count = len(user_delivered_orders) + 1
     
     # Get next order ID
     if orders:
@@ -251,6 +265,9 @@ def add_order():
     order = {
         "id": str(order_id),
         "name": data["name"],
+        "person_type": person_type,
+        "order_count": str(order_count),
+        "additional_instructions": data.get("additional_instructions", ""),
         **opts,
         "status": "pending",
         "timestamp": datetime.now().isoformat()
@@ -450,7 +467,7 @@ def add_ingredient():
     # Rebuild OPTIONS and FIELDNAMES
     global OPTIONS, FIELDNAMES
     OPTIONS = get_option_keys()
-    FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
+    FIELDNAMES = ["id", "name", "person_type", "order_count", "additional_instructions"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
 
     return {"success": True, "ingredient": new_ingredient}
 
@@ -473,7 +490,7 @@ def update_ingredient(ingredient_id):
     # Rebuild OPTIONS and FIELDNAMES
     global OPTIONS, FIELDNAMES
     OPTIONS = get_option_keys()
-    FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
+    FIELDNAMES = ["id", "name", "person_type", "order_count", "additional_instructions"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
 
     return {"success": True}
 
@@ -486,7 +503,7 @@ def delete_ingredient(ingredient_id):
     # Rebuild OPTIONS and FIELDNAMES
     global OPTIONS, FIELDNAMES
     OPTIONS = get_option_keys()
-    FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
+    FIELDNAMES = ["id", "name", "person_type", "order_count", "additional_instructions"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
 
     return {"success": True}
 

@@ -173,6 +173,12 @@
     <div id="sauces-section"></div>
     <div id="drinks-section"></div>
 
+    <!-- Additional Instructions -->
+    <div class="mb-4">
+        <label for="additional_instructions" class="form-label"><h5>📝 Additional Instructions (Optional)</h5></label>
+        <textarea class="form-control" id="additional_instructions" rows="3" placeholder="Any special requests or instructions..."></textarea>
+    </div>
+
     <button class="btn btn-primary w-100 w-sm-auto">Place Order</button>
 </form>
 </div>
@@ -293,7 +299,10 @@ function renderCategory(category, title, sectionId, inputType) {
 document.getElementById("orderForm")?.addEventListener("submit", async e => {
     e.preventDefault();
     
-    const payload = { name: document.getElementById("customerName").value };
+    const payload = { 
+        name: document.getElementById("customerName").value,
+        additional_instructions: document.getElementById("additional_instructions").value || ""
+    };
     
     // Collect all ingredient selections
     ingredients.forEach(ing => {
@@ -376,7 +385,8 @@ async function checkOrderStatus() {
 }
 
 function showOrderStatus(order) {
-    const container = document.querySelector('.container');
+    // Use order-section tab pane if it exists (for delivery users), otherwise use body container
+    const container = document.getElementById('order-section') || document.querySelector('.container');
     // Hide other views
     const orderClosed = document.getElementById("orderClosed");
     const orderForm = document.getElementById("orderFormContainer");
@@ -448,7 +458,8 @@ function updateOrderStatus(order) {
 }
 
 function showOrderForm() {
-    const container = document.querySelector('.container');
+    // Use order-section tab pane if it exists (for delivery users), otherwise use body container
+    const container = document.getElementById('order-section') || document.querySelector('.container');
     // Hide other views
     const orderClosed = document.getElementById("orderClosed");
     const orderStatus = document.getElementById("orderStatus");
@@ -476,7 +487,8 @@ function showOrderForm() {
 }
 
 function showOrderClosed() {
-    const container = document.querySelector('.container');
+    // Use order-section tab pane if it exists (for delivery users), otherwise use body container
+    const container = document.getElementById('order-section') || document.querySelector('.container');
     // Hide other views
     const orderForm = document.getElementById("orderFormContainer");
     const orderStatus = document.getElementById("orderStatus");
@@ -595,15 +607,20 @@ function renderReadyOrders(orders) {
         return;
     }
 
+    const currentUserName = '{{ user.name }}';
     let html = '<div class="list-group">';
     orders.forEach(order => {
         const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
+        const isForDeliveryPerson = order.name === currentUserName;
+        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'} - Order #${order.order_count || '1'}`;
+        
         html += `
-        <div class="list-group-item">
+        <div class="list-group-item ${isForDeliveryPerson ? 'border-danger border-2' : ''}">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-1">Order #${order.id} - ${order.name}</h6>
+                    <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">Order #${order.id} - ${personLabel}</h6>
                     <small class="text-muted">${ingredients || 'No items'}</small>
+                    ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
                 </div>
                 <button class="btn btn-sm btn-primary" onclick="collectOrder(${order.id})">Collect</button>
             </div>
@@ -620,16 +637,21 @@ function renderMyDeliveries(orders) {
         return;
     }
 
+    const currentUserName = '{{ user.name }}';
     let html = '<div class="list-group">';
     orders.forEach(order => {
         const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
+        const isForDeliveryPerson = order.name === currentUserName;
+        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'} - Order #${order.order_count || '1'}`;
+        
         html += `
-        <div class="list-group-item">
+        <div class="list-group-item ${isForDeliveryPerson ? 'border-danger border-2' : ''}">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-1">Order #${order.id} - ${order.name}</h6>
-                    <small class="text-muted">${ingredients || 'No items'}</small><br>
-                    <small class="text-muted">Collected at: ${new Date(order.collected_at).toLocaleString()}</small>
+                    <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">Order #${order.id} - ${personLabel}</h6>
+                    <small class="text-muted">${ingredients || 'No items'}</small>
+                    ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
+                    <br><small class="text-muted">Collected at: ${new Date(order.collected_at).toLocaleString()}</small>
                 </div>
                 <button class="btn btn-sm btn-success" onclick="deliverOrder(${order.id})">Mark Delivered</button>
             </div>

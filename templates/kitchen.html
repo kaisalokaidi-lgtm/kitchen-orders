@@ -75,7 +75,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Name</th><th>Options</th><th></th></tr>
+                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="pending-orders"></tbody>
         </table>
@@ -88,7 +88,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Name</th><th>Options</th><th></th></tr>
+                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="preparing-orders"></tbody>
         </table>
@@ -101,7 +101,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Name</th><th>Options</th><th>Time</th></tr>
+                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Time</th></tr>
             </thead>
             <tbody id="ready-orders"></tbody>
         </table>
@@ -114,7 +114,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Name</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
+                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
             </thead>
             <tbody id="out-for-delivery-orders"></tbody>
         </table>
@@ -130,7 +130,7 @@
         <div class="table-responsive">
             <table class="table">
                 <thead>
-                    <tr><th>Order #</th><th>Name</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
+                    <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
                 </thead>
                 <tbody id="delivered-orders"></tbody>
             </table>
@@ -178,7 +178,7 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
     tbody.innerHTML = "";
     
     if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">No orders</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders</td></tr>`;
         return;
     }
     
@@ -215,15 +215,17 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
         tbody.innerHTML += `
         <tr class="${rowClass}" ${rowClick}>
             <td><strong>#${o.id}</strong></td>
-            <td>${o.name}</td>
+            <td>${o.person_type || '—'}</td>
+            <td>#${o.order_count || '1'}</td>
             <td>${badges || "—"}</td>
             <td>${actionButton}</td>
         </tr>
         ${isExpanded && allowExpand ? `
         <tr>
-            <td colspan="4" class="p-0">
+            <td colspan="5" class="p-0">
                 <div class="order-details">
-                    <h6 class="mb-3">📋 Checklist for ${o.name}'s order:</h6>
+                    <h6 class="mb-3">📋 Checklist for Order #${o.id} (${o.person_type || 'Unknown'}):</h6>
+                    ${o.additional_instructions ? `<div class="alert alert-info mb-3"><strong>📝 Instructions:</strong> ${o.additional_instructions}</div>` : ''}
                     ${selectedIngredients.length > 0 ? selectedIngredients.map((k, idx) => {
                         const isChecked = checkedIngredients.includes(k);
                         return `
@@ -298,7 +300,7 @@ async function renderOutForDeliveryOrders(orders) {
     tbody.innerHTML = "";
 
     if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders out for delivery</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center">No orders out for delivery</td></tr>`;
         return;
     }
 
@@ -315,7 +317,8 @@ async function renderOutForDeliveryOrders(orders) {
         tbody.innerHTML += `
         <tr>
             <td><strong>#${o.id}</strong></td>
-            <td>${o.name}</td>
+            <td>${o.person_type || '—'}</td>
+            <td>#${o.order_count || '1'}</td>
             <td>${badges || "—"}</td>
             <td>${o.collected_by || 'N/A'}</td>
             <td>${collectedAt}</td>
@@ -328,7 +331,7 @@ async function renderDeliveredOrders(orders) {
     tbody.innerHTML = "";
 
     if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No delivered orders</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-muted text-center">No delivered orders</td></tr>`;
         return;
     }
 
@@ -348,7 +351,8 @@ async function renderDeliveredOrders(orders) {
         tbody.innerHTML += `
         <tr>
             <td><strong>#${o.id}</strong></td>
-            <td>${o.name}</td>
+            <td>${o.person_type || '—'}</td>
+            <td>#${o.order_count || '1'}</td>
             <td>${badges || "—"}</td>
             <td>${o.collected_by || 'N/A'}</td>
             <td>${deliveredAt}</td>
