@@ -67,6 +67,11 @@
                         <label class="form-label">Emoji (optional)</label>
                         <input class="form-control" id="emoji" placeholder="e.g., 🍅">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Image URL (optional)</label>
+                        <input type="url" class="form-control" id="imageUrl" placeholder="https://example.com/image.jpg">
+                        <small class="text-muted">Enter a URL to an image for this ingredient</small>
+                    </div>
                     <button class="btn btn-primary">Add Ingredient</button>
                 </form>
                 <div id="ingredient-success" class="alert alert-success mt-3 d-none">Ingredient added!</div>
@@ -142,35 +147,45 @@
     <div class="tab-pane fade" id="order-control" role="tabpanel">
         <div class="row mt-4">
             <div class="col-md-6">
-                <h4>Category Controls</h4>
-                <p class="text-muted">Enable ordering by gender/category</p>
-                
+                <h4>Quick Toggle Buttons</h4>
+                <p class="text-muted">Toggle all users in a category from Individual User Controls</p>
+
                 <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="allEnabled" onchange="updateCategorySetting('all_enabled', this.checked)">
-                        <label class="form-check-label fw-bold">Enable All Users</label>
-                    </div>
+                    <button class="btn btn-primary w-100" onclick="toggleCategory('all', true)">
+                        Enable All Users
+                    </button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" onclick="toggleCategory('all', false)">
+                        Disable All Users
+                    </button>
                 </div>
-                
+
+                <hr class="my-4">
+
                 <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="maleEnabled" onchange="updateCategorySetting('male_enabled', this.checked)">
-                        <label class="form-check-label">Enable Male Users 👨</label>
-                    </div>
+                    <button class="btn btn-primary w-100" onclick="toggleCategory('male', true)">
+                        Enable Male Users 👨
+                    </button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" onclick="toggleCategory('male', false)">
+                        Disable Male Users 👨
+                    </button>
                 </div>
-                
+
                 <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="femaleEnabled" onchange="updateCategorySetting('female_enabled', this.checked)">
-                        <label class="form-check-label">Enable Female Users 👩</label>
-                    </div>
+                    <button class="btn btn-primary w-100" onclick="toggleCategory('female', true)">
+                        Enable Female Users 👩
+                    </button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" onclick="toggleCategory('female', false)">
+                        Disable Female Users 👩
+                    </button>
                 </div>
-                
+
                 <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="kidEnabled" onchange="updateCategorySetting('kid_enabled', this.checked)">
-                        <label class="form-check-label">Enable Kids 👶</label>
-                    </div>
+                    <button class="btn btn-primary w-100" onclick="toggleCategory('kid', true)">
+                        Enable Kids 👶
+                    </button>
+                    <button class="btn btn-outline-secondary w-100 mt-2" onclick="toggleCategory('kid', false)">
+                        Disable Kids 👶
+                    </button>
                 </div>
             </div>
             
@@ -269,15 +284,16 @@ document.getElementById("ingredientForm").addEventListener("submit", async e => 
     const payload = {
         name: document.getElementById("ingredientName").value,
         category: document.getElementById("category").value,
-        emoji: document.getElementById("emoji").value
+        emoji: document.getElementById("emoji").value,
+        image_url: document.getElementById("imageUrl").value
     };
-    
+
     await fetch("/api/ingredients", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
     });
-    
+
     document.getElementById("ingredient-success").classList.remove("d-none");
     setTimeout(() => document.getElementById("ingredient-success").classList.add("d-none"), 2000);
     e.target.reset();
@@ -310,31 +326,25 @@ document.getElementById("userForm").addEventListener("submit", async e => {
 async function loadOrderSettings() {
     const res = await fetch("/api/order-settings");
     const settings = await res.json();
-    
-    // Update category checkboxes
-    document.getElementById("allEnabled").checked = settings.all_enabled;
-    document.getElementById("maleEnabled").checked = settings.male_enabled;
-    document.getElementById("femaleEnabled").checked = settings.female_enabled;
-    document.getElementById("kidEnabled").checked = settings.kid_enabled;
-    
+
     // Render user controls
     const genderEmoji = {
         'male': '👨',
         'female': '👩',
         'kid': '👶'
     };
-    
+
     const container = document.getElementById("user-controls");
     if (settings.users.length === 0) {
         container.innerHTML = '<p class="text-muted">No users to control</p>';
         return;
     }
-    
+
     container.innerHTML = settings.users.map(user => `
         <div class="mb-2">
             <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="user_${user.id}" 
-                    ${user.can_order ? 'checked' : ''} 
+                <input class="form-check-input" type="checkbox" id="user_${user.id}"
+                    ${user.can_order ? 'checked' : ''}
                     onchange="updateUserSetting(${user.id}, this.checked)">
                 <label class="form-check-label">${user.name} ${genderEmoji[user.gender] || ''}</label>
             </div>
@@ -342,12 +352,14 @@ async function loadOrderSettings() {
     `).join('');
 }
 
-async function updateCategorySetting(setting, enabled) {
+async function toggleCategory(category, enabled) {
     await fetch("/api/order-settings", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({[setting]: enabled})
+        body: JSON.stringify({toggle_category: category, enabled: enabled})
     });
+    // Reload to show updated checkboxes
+    await loadOrderSettings();
 }
 
 async function updateUserSetting(userId, enabled) {

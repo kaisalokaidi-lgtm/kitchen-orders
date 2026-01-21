@@ -25,36 +25,30 @@ if not os.path.exists(ORDER_SETTINGS_FILE):
     with open(ORDER_SETTINGS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["setting", "value"])
         writer.writeheader()
-        # Default: nobody can order
-        writer.writerows([
-            {"setting": "male_enabled", "value": "False"},
-            {"setting": "female_enabled", "value": "False"},
-            {"setting": "kid_enabled", "value": "False"},
-            {"setting": "all_enabled", "value": "False"}
-        ])
+        # Only user-specific settings will be stored
 
 if not os.path.exists(INGREDIENTS_FILE):
     with open(INGREDIENTS_FILE, "w", newline="", encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji"])
+        writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji", "image_url"])
         writer.writeheader()
         # Add default ingredients
         default_ingredients = [
-            {"id": "1", "name": "Tomatoes", "category": "salads", "emoji": "🍅"},
-            {"id": "2", "name": "Saute onions", "category": "salads", "emoji": "🧅"},
-            {"id": "3", "name": "Gherkins", "category": "salads", "emoji": "🥒"},
-            {"id": "4", "name": "Jalapeno", "category": "salads", "emoji": "🌶️"},
-            {"id": "5", "name": "Cheese", "category": "salads", "emoji": "🧀"},
-            {"id": "6", "name": "Lettuce", "category": "salads", "emoji": "🥬"},
-            {"id": "7", "name": "Chefs special", "category": "salads", "emoji": "👨‍🍳"},
-            {"id": "8", "name": "Peri peri lemon and herb", "category": "sauces", "emoji": "🍋🌿"},
-            {"id": "9", "name": "Burger sauce", "category": "sauces", "emoji": "🥫"},
-            {"id": "10", "name": "Ketchup", "category": "sauces", "emoji": "🍅"},
-            {"id": "11", "name": "BBQ", "category": "sauces", "emoji": "🔥"},
-            {"id": "12", "name": "Mayo", "category": "sauces", "emoji": "🧴"},
-            {"id": "13", "name": "Peri peri medium", "category": "sauces", "emoji": "🌶️"},
-            {"id": "14", "name": "Water", "category": "drinks", "emoji": "💧"},
-            {"id": "15", "name": "Coke", "category": "drinks", "emoji": "🥤"},
-            {"id": "16", "name": "Tropicana", "category": "drinks", "emoji": "🍊"},
+            {"id": "1", "name": "Tomatoes", "category": "salads", "emoji": "🍅", "image_url": ""},
+            {"id": "2", "name": "Saute onions", "category": "salads", "emoji": "🧅", "image_url": ""},
+            {"id": "3", "name": "Gherkins", "category": "salads", "emoji": "🥒", "image_url": ""},
+            {"id": "4", "name": "Jalapeno", "category": "salads", "emoji": "🌶️", "image_url": ""},
+            {"id": "5", "name": "Cheese", "category": "salads", "emoji": "🧀", "image_url": ""},
+            {"id": "6", "name": "Lettuce", "category": "salads", "emoji": "🥬", "image_url": ""},
+            {"id": "7", "name": "Chefs special", "category": "salads", "emoji": "👨‍🍳", "image_url": ""},
+            {"id": "8", "name": "Peri peri lemon and herb", "category": "sauces", "emoji": "🍋🌿", "image_url": ""},
+            {"id": "9", "name": "Burger sauce", "category": "sauces", "emoji": "🥫", "image_url": ""},
+            {"id": "10", "name": "Ketchup", "category": "sauces", "emoji": "🍅", "image_url": ""},
+            {"id": "11", "name": "BBQ", "category": "sauces", "emoji": "🔥", "image_url": ""},
+            {"id": "12", "name": "Mayo", "category": "sauces", "emoji": "🧴", "image_url": ""},
+            {"id": "13", "name": "Peri peri medium", "category": "sauces", "emoji": "🌶️", "image_url": ""},
+            {"id": "14", "name": "Water", "category": "drinks", "emoji": "💧", "image_url": ""},
+            {"id": "15", "name": "Coke", "category": "drinks", "emoji": "🥤", "image_url": ""},
+            {"id": "16", "name": "Tropicana", "category": "drinks", "emoji": "🍊", "image_url": ""},
         ]
         writer.writerows(default_ingredients)
 
@@ -67,7 +61,7 @@ def read_ingredients():
 
 def write_ingredients(ingredients):
     with open(INGREDIENTS_FILE, "w", newline="", encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji"])
+        writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji", "image_url"])
         writer.writeheader()
         writer.writerows(ingredients)
 
@@ -103,22 +97,13 @@ def can_user_order(user_id):
     user = next((u for u in users if u['id'] == user_id), None)
     if not user:
         return False
-    
+
     settings = read_order_settings()
-    
-    # Check if all orders are enabled
-    if settings.get("all_enabled") == "True":
-        return True
-    
-    # Check if user's gender category is enabled
-    gender = user.get("gender", "")
-    if settings.get(f"{gender}_enabled") == "True":
-        return True
-    
-    # Check if specific user is enabled
+
+    # Only check if specific user is enabled
     if settings.get(f"user_{user_id}") == "True":
         return True
-    
+
     return False
 
 def get_user_current_order(user_id):
@@ -390,16 +375,17 @@ def add_ingredient():
         "id": str(ingredient_id),
         "name": data["name"],
         "category": data["category"],
-        "emoji": data.get("emoji", "")
+        "emoji": data.get("emoji", ""),
+        "image_url": data.get("image_url", "")
     }
     ingredients.append(new_ingredient)
     write_ingredients(ingredients)
-    
+
     # Rebuild OPTIONS and FIELDNAMES
     global OPTIONS, FIELDNAMES
     OPTIONS = get_option_keys()
     FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
-    
+
     return {"success": True, "ingredient": new_ingredient}
 
 @app.route("/api/ingredients/<int:ingredient_id>", methods=["DELETE"])
@@ -475,10 +461,6 @@ def get_order_settings():
                 "can_order": settings.get(f"user_{user['id']}") == "True"
             })
     return jsonify({
-        "all_enabled": settings.get("all_enabled") == "True",
-        "male_enabled": settings.get("male_enabled") == "True",
-        "female_enabled": settings.get("female_enabled") == "True",
-        "kid_enabled": settings.get("kid_enabled") == "True",
         "users": user_settings
     })
 
@@ -486,21 +468,28 @@ def get_order_settings():
 def update_order_settings():
     data = request.json
     settings = read_order_settings()
-    
-    # Update category settings
-    if "all_enabled" in data:
-        settings["all_enabled"] = str(data["all_enabled"])
-    if "male_enabled" in data:
-        settings["male_enabled"] = str(data["male_enabled"])
-    if "female_enabled" in data:
-        settings["female_enabled"] = str(data["female_enabled"])
-    if "kid_enabled" in data:
-        settings["kid_enabled"] = str(data["kid_enabled"])
-    
-    # Update user-specific settings
+    users = read_users()
+
+    # Handle category toggles - toggle all users of that category
+    if "toggle_category" in data:
+        category = data["toggle_category"]  # "male", "female", "kid", or "all"
+        enabled = data.get("enabled", False)
+
+        if category == "all":
+            # Toggle all non-admin users
+            for user in users:
+                if user['role'] != 'admin':
+                    settings[f"user_{user['id']}"] = str(enabled)
+        else:
+            # Toggle all users of specific gender
+            for user in users:
+                if user['role'] != 'admin' and user.get('gender') == category:
+                    settings[f"user_{user['id']}"] = str(enabled)
+
+    # Update individual user-specific settings
     if "user_id" in data:
         settings[f"user_{data['user_id']}"] = str(data.get("enabled", False))
-    
+
     write_order_settings(settings)
     return {"success": True}
 

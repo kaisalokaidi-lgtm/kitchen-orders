@@ -54,6 +54,55 @@
             margin-right: 8px;
             font-weight: bold;
         }
+        .ingredient-image {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .ingredient-image:hover {
+            transform: scale(1.1);
+        }
+        .form-check-label {
+            gap: 12px;
+        }
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            align-items: center;
+            justify-content: center;
+        }
+        .image-modal.show {
+            display: flex;
+        }
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .image-modal .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .image-modal .close-modal:hover {
+            color: #bbb;
+        }
     </style>
 </head>
 <body class="container py-3 py-md-5">
@@ -112,8 +161,38 @@
 <div id="success" class="alert alert-success mt-3 d-none">Order placed successfully! 🎉</div>
 <div id="error" class="alert alert-danger mt-3 d-none"></div>
 
+<!-- Image Modal -->
+<div id="imageModal" class="image-modal" onclick="closeImageModal(event)">
+    <span class="close-modal" onclick="closeImageModal(event)">&times;</span>
+    <img id="modalImage" src="" alt="Ingredient">
+</div>
+
 <script>
 let ingredients = [];
+
+// Image modal functions
+function openImageModal(event, imageUrl, imageName) {
+    event.preventDefault(); // Prevent default action
+    event.stopPropagation(); // Prevent label click from toggling checkbox
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImage');
+    modal.classList.add('show');
+    modalImg.src = imageUrl;
+    modalImg.alt = imageName;
+    return false; // Extra safeguard to prevent event bubbling
+}
+
+function closeImageModal(event) {
+    const modal = document.getElementById('imageModal');
+    modal.classList.remove('show');
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
+    }
+});
 
 async function loadIngredients() {
     const res = await fetch("/api/ingredients");
@@ -127,23 +206,31 @@ async function loadIngredients() {
 function renderCategory(category, title, sectionId, inputType) {
     const categoryIngredients = ingredients.filter(i => i.category === category);
     if (categoryIngredients.length === 0) return;
-    
+
     const section = document.getElementById(sectionId);
     let html = `<div class="mb-4"><h5 class="mb-3">${title}</h5>`;
-    
+
     categoryIngredients.forEach(ing => {
         const key = ing.name.toLowerCase().replace(/ /g, '_');
         const inputName = inputType === 'radio' ? 'drink' : '';
         const nameAttr = inputName ? `name="${inputName}"` : '';
         const valueAttr = inputType === 'radio' ? `value="${key}"` : '';
-        
+
+        // Build image HTML if image_url exists
+        const imageHtml = ing.image_url ?
+            `<img src="${ing.image_url}" alt="${ing.name}" class="ingredient-image" onerror="this.style.display='none'" onclick="openImageModal(event, '${ing.image_url}', '${ing.name}')">` :
+            '';
+
         html += `
         <div class="form-check">
             <input class="form-check-input" type="${inputType}" id="${key}" ${nameAttr} ${valueAttr}>
-            <label class="form-check-label" for="${key}">${ing.name} ${ing.emoji}</label>
+            <label class="form-check-label" for="${key}">
+                ${imageHtml}
+                <span>${ing.name} ${ing.emoji}</span>
+            </label>
         </div>`;
     });
-    
+
     // Add "No drink" option for drinks
     if (category === 'drinks') {
         html += `
@@ -152,7 +239,7 @@ function renderCategory(category, title, sectionId, inputType) {
             <label class="form-check-label" for="no_drink">No drink</label>
         </div>`;
     }
-    
+
     html += '</div>';
     section.innerHTML = html;
 }
