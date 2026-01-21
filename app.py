@@ -388,17 +388,40 @@ def add_ingredient():
 
     return {"success": True, "ingredient": new_ingredient}
 
+@app.route("/api/ingredients/<int:ingredient_id>", methods=["PUT"])
+def update_ingredient(ingredient_id):
+    data = request.json
+    ingredients = read_ingredients()
+
+    # Find and update the ingredient
+    for ing in ingredients:
+        if int(ing["id"]) == ingredient_id:
+            ing["name"] = data.get("name", ing["name"])
+            ing["category"] = data.get("category", ing["category"])
+            ing["emoji"] = data.get("emoji", ing.get("emoji", ""))
+            ing["image_url"] = data.get("image_url", ing.get("image_url", ""))
+            break
+
+    write_ingredients(ingredients)
+
+    # Rebuild OPTIONS and FIELDNAMES
+    global OPTIONS, FIELDNAMES
+    OPTIONS = get_option_keys()
+    FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
+
+    return {"success": True}
+
 @app.route("/api/ingredients/<int:ingredient_id>", methods=["DELETE"])
 def delete_ingredient(ingredient_id):
     ingredients = read_ingredients()
     ingredients = [ing for ing in ingredients if int(ing["id"]) != ingredient_id]
     write_ingredients(ingredients)
-    
+
     # Rebuild OPTIONS and FIELDNAMES
     global OPTIONS, FIELDNAMES
     OPTIONS = get_option_keys()
     FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
-    
+
     return {"success": True}
 
 @app.route("/api/login", methods=["POST"])
