@@ -75,7 +75,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Name</th><th>Options</th><th></th></tr>
+                <tr><th>Order #</th><th>Name</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="pending-orders"></tbody>
         </table>
@@ -88,7 +88,7 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Name</th><th>Options</th><th></th></tr>
+                <tr><th>Order #</th><th>Name</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="preparing-orders"></tbody>
         </table>
@@ -97,14 +97,44 @@
 
 <!-- Ready Orders -->
 <div class="mb-5">
-    <h4 class="mb-3">✅ Ready</h4>
+    <h4 class="mb-3">✅ Ready for Delivery Pickup</h4>
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Name</th><th>Options</th><th>Time</th></tr>
+                <tr><th>Order #</th><th>Name</th><th>Options</th><th>Time</th></tr>
             </thead>
             <tbody id="ready-orders"></tbody>
         </table>
+    </div>
+</div>
+
+<!-- Out for Delivery Orders -->
+<div class="mb-5">
+    <h4 class="mb-3">🚚 Out for Delivery</h4>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Order #</th><th>Name</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
+            </thead>
+            <tbody id="out-for-delivery-orders"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Delivered Orders -->
+<div class="mb-5">
+    <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#deliveredSection">
+        📜 Delivered Orders
+    </button>
+    <div class="collapse" id="deliveredSection">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr><th>Order #</th><th>Name</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
+                </thead>
+                <tbody id="delivered-orders"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 <script>
@@ -129,14 +159,18 @@ async function loadOrders() {
     const orders = await res.json();
     console.log("Loaded orders:", orders);
     console.log("OPTION_LABELS at loadOrders:", OPTION_LABELS);
-    
+
     const pendingOrders = orders.filter(o => o.status === "pending");
     const preparingOrders = orders.filter(o => o.status === "preparing");
     const readyOrders = orders.filter(o => o.status === "ready");
-    
+    const outForDeliveryOrders = orders.filter(o => o.status === "out_for_delivery");
+    const deliveredOrders = orders.filter(o => o.status === "delivered");
+
     await renderOrders(pendingOrders, "pending-orders", false, "pending");
     await renderOrders(preparingOrders, "preparing-orders", true, "preparing");
     await renderOrders(readyOrders, "ready-orders", false, "ready");
+    await renderOutForDeliveryOrders(outForDeliveryOrders);
+    await renderDeliveredOrders(deliveredOrders);
 }
 
 async function renderOrders(orders, tbodyId, allowExpand, status) {
@@ -144,7 +178,7 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
     tbody.innerHTML = "";
     
     if (orders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" class="text-muted text-center">No orders</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted text-center">No orders</td></tr>`;
         return;
     }
     
@@ -180,13 +214,14 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
         
         tbody.innerHTML += `
         <tr class="${rowClass}" ${rowClick}>
+            <td><strong>#${o.id}</strong></td>
             <td>${o.name}</td>
             <td>${badges || "—"}</td>
-            <td>${actionButton} ${status === 'ready' ? `<button class="btn btn-danger btn-sm ms-2" onclick="event.stopPropagation(); clearOrder(${o.id})">Clear</button>` : ''}</td>
+            <td>${actionButton}</td>
         </tr>
         ${isExpanded && allowExpand ? `
         <tr>
-            <td colspan="3" class="p-0">
+            <td colspan="4" class="p-0">
                 <div class="order-details">
                     <h6 class="mb-3">📋 Checklist for ${o.name}'s order:</h6>
                     ${selectedIngredients.length > 0 ? selectedIngredients.map((k, idx) => {
@@ -258,10 +293,67 @@ async function markReady(id) {
     loadOrders();
 }
 
-async function clearOrder(id) {
-    if (!confirm('Clear this order? This will allow the user to order again.')) return;
-    await fetch(`/api/orders/${id}/clear`, { method: "POST" });
-    loadOrders();
+async function renderOutForDeliveryOrders(orders) {
+    const tbody = document.getElementById("out-for-delivery-orders");
+    tbody.innerHTML = "";
+
+    if (orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders out for delivery</td></tr>`;
+        return;
+    }
+
+    for (const o of orders) {
+        const selectedIngredients = Object.keys(o).filter(k =>
+            o[k] === "True" && OPTION_LABELS[k]
+        );
+        const badges = selectedIngredients.map(k =>
+            `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
+        ).join("");
+
+        const collectedAt = o.collected_at ? new Date(o.collected_at).toLocaleString() : 'N/A';
+
+        tbody.innerHTML += `
+        <tr>
+            <td><strong>#${o.id}</strong></td>
+            <td>${o.name}</td>
+            <td>${badges || "—"}</td>
+            <td>${o.collected_by || 'N/A'}</td>
+            <td>${collectedAt}</td>
+        </tr>`;
+    }
+}
+
+async function renderDeliveredOrders(orders) {
+    const tbody = document.getElementById("delivered-orders");
+    tbody.innerHTML = "";
+
+    if (orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No delivered orders</td></tr>`;
+        return;
+    }
+
+    // Show most recent 20
+    const recentOrders = orders.slice(-20).reverse();
+
+    for (const o of recentOrders) {
+        const selectedIngredients = Object.keys(o).filter(k =>
+            o[k] === "True" && OPTION_LABELS[k]
+        );
+        const badges = selectedIngredients.map(k =>
+            `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
+        ).join("");
+
+        const deliveredAt = o.delivered_at ? new Date(o.delivered_at).toLocaleString() : 'N/A';
+
+        tbody.innerHTML += `
+        <tr>
+            <td><strong>#${o.id}</strong></td>
+            <td>${o.name}</td>
+            <td>${badges || "—"}</td>
+            <td>${o.collected_by || 'N/A'}</td>
+            <td>${deliveredAt}</td>
+        </tr>`;
+    }
 }
 
 loadIngredientLabels().then(() => {
@@ -269,5 +361,6 @@ loadIngredientLabels().then(() => {
     setInterval(loadOrders, 2000);
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

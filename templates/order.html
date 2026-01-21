@@ -114,19 +114,39 @@
     </div>
 </div>
 
+{% if is_delivery %}
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="order-tab" data-bs-toggle="tab" href="#order-section">🍔 Place Order</a>
+    </li>
+    <li class="nav-item position-relative">
+        <a class="nav-link" id="delivery-tab" data-bs-toggle="tab" href="#delivery-section">
+            🚚 Delivery
+            <span class="badge bg-danger rounded-pill d-none" id="delivery-badge" style="position: absolute; top: 5px; right: 5px;">0</span>
+        </a>
+    </li>
+</ul>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="order-section">
+{% endif %}
+
 {% if current_order %}
 <!-- Show current order status -->
 <div class="alert {% if current_order.status == 'ready' %}alert-success{% else %}alert-info{% endif %}" id="orderStatus">
     <h4>📦 Your Order Status</h4>
     <p class="mb-2"><strong>Order #<span id="orderId">{{ current_order.id }}</span></strong></p>
     <p class="mb-0" id="statusText">
-        Status: 
+        Status:
         {% if current_order.status == 'pending' %}
             <span class="badge bg-warning">⏳ Pending - Waiting to be prepared</span>
         {% elif current_order.status == 'preparing' %}
             <span class="badge bg-primary">🔥 Preparing - Your order is being made!</span>
         {% elif current_order.status == 'ready' %}
             <span class="badge bg-success">✅ Ready - Your order is ready for delivery!</span>
+        {% elif current_order.status == 'out_for_delivery' %}
+            <span class="badge bg-info">🚚 Out for Delivery</span>
+        {% elif current_order.status == 'delivered' %}
+            <span class="badge bg-success">✅ Delivered</span>
         {% endif %}
     </p>
     {% if current_order.status == 'ready' %}
@@ -158,8 +178,34 @@
 </div>
 {% endif %}
 
+{% if is_delivery %}
+    </div>
+    <div class="tab-pane fade" id="delivery-section">
+        <h4>📦 Ready for Delivery</h4>
+        <div id="ready-orders-list" class="mb-4"></div>
+
+        <h4 class="mt-5">🚚 My Current Deliveries</h4>
+        <div id="my-deliveries-list" class="mb-4"></div>
+    </div>
+</div>
+{% endif %}
+
+<div class="mt-5">
+    <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#orderHistory">
+        📜 Order History
+    </button>
+    <div class="collapse" id="orderHistory">
+        <div id="order-history-list"></div>
+    </div>
+</div>
+
 <div id="success" class="alert alert-success mt-3 d-none">Order placed successfully! 🎉</div>
 <div id="error" class="alert alert-danger mt-3 d-none"></div>
+
+<!-- Notification Sound -->
+<audio id="notificationSound" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUKnl77RgGwU7k9n0yHYpBS2Ayvbej0ILEluz6OmkUhMLSKLi8LplHAY2jdTszHkrBSh+x/DdkEAKFF607OunVBQKRp/g8r5sIQUrgs/z2Yk2CBlpu+3mn04MDlCp5O+zYBoGPZTa9sh2KgYqfsXu3Y9CCxJbs+jpp1MUC0mi4/K6ZBsGN5DU68x4KwYngcTu3o9DCxJatOjopVQUC0mi4/K6ZBwGN5HU7Mx4LAYmgMXu3pBDDRNbsujpplQUC0qj4/K5ZR0GNpHU7M15LAYngMXu35BDDRJatOjpplQVC0uj4/G5ZRwGNpDT7Mx5KwYmf8Xu35BCDRJasujpplUVC0qi4vG6ZRwFNY/T7c15KwUlf8Xv35FCDRFZsunqplUWC0qh4/G6ZBsGNpDT7Mx5KwYmgMXu35BDDRFasujqp1UWC0qi4/G5ZR0GNY/T7Mx5KwUmf8Xv35FCDRFZsunqplQVC0uh4/G6ZRwGNpDT7Mx5KwYlfsXv4JFCDBFZsujqp1UWC0qh4vG5ZRwFNZDT7c15KwYlf8Xu35BCDRFasunqp1QVC0qh4vG6ZRwGNY/T7M15KwYmf8Xv35BCDRFasujqp1QWC0mh4vG6ZRwFNY/T7M15KwYmf8Xu35BCDBFasunqp1QWC0mh4vG6ZRwGNY/T7M15KwYlf8Xv35BCDRFasujqplQWC0mh4vG6ZRwGNY/U7M15KwYlfsXv4JBCDBFasujqp1QWC0mh4vK6ZBsGNY/T7Mx5KwYlfsXv35BCDRFasunqplQWC0mh4vG6ZRwGNY/T7Mx5KwYlf8Xv35BCDRFZsunqp1QVCkmh4vG6ZRwGNY/T7Mx5KwYlf8Xv35BCDRFZsunqp1QWC0mh4vG6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFasunqp1QWC0mh4vK5ZRwGNpDT7Mx5KwYlf8Xv4JBCDRFasujqp1QWC0mh4vG6ZRwGNpDT7Mx5KwYlf8Xv4JBCDRFZsunqplQWC0mh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/U7Mx5KwYlf8Xv4JBCDBJZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7M15KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZsunqp1QWCkmh4vK6ZRwGNY/T7Mx5KwYlf8Xv4JBCDRFZ" type="audio/wav">
+</audio>
 
 <!-- Image Modal -->
 <div id="imageModal" class="image-modal" onclick="closeImageModal(event)">
@@ -349,7 +395,15 @@ function showOrderStatus(order) {
     } else if (order.status === 'ready') {
         statusBadge = '<span class="badge bg-success">✅ Ready - Your order is ready for pickup!</span>';
         alertClass = 'alert-success';
-        message = "Please collect your order. You'll be able to order again after the admin clears this order.";
+        message = "Your order is ready! Waiting for delivery pickup.";
+    } else if (order.status === 'out_for_delivery') {
+        statusBadge = '<span class="badge bg-info">🚚 Out for Delivery</span>';
+        alertClass = 'alert-info';
+        message = "Your order is on the way!";
+    } else if (order.status === 'delivered') {
+        statusBadge = '<span class="badge bg-success">✅ Delivered</span>';
+        alertClass = 'alert-success';
+        message = "Your order has been delivered! Enjoy your meal!";
     }
     
     if (!document.getElementById("orderStatus")) {
@@ -380,6 +434,12 @@ function updateOrderStatus(order) {
         badge = '<span class="badge bg-primary">🔥 Preparing - Your order is being made!</span>';
     } else if (order.status === 'ready') {
         badge = '<span class="badge bg-success">✅ Ready - Your order is ready for pickup!</span>';
+        alertClass = 'alert alert-success';
+    } else if (order.status === 'out_for_delivery') {
+        badge = '<span class="badge bg-info">🚚 Out for Delivery</span>';
+        alertClass = 'alert alert-info';
+    } else if (order.status === 'delivered') {
+        badge = '<span class="badge bg-success">✅ Delivered</span>';
         alertClass = 'alert alert-success';
     }
     
@@ -479,6 +539,217 @@ function setupOrderForm() {
 
 // Check status every 3 seconds
 setInterval(checkOrderStatus, 3000);
+
+{% if is_delivery %}
+// Delivery functions
+let previousReadyCount = 0;
+
+async function loadReadyOrders() {
+    try {
+        const res = await fetch("/api/delivery/ready-orders");
+        const orders = await res.json();
+
+        // Update badge
+        const badge = document.getElementById('delivery-badge');
+        if (orders.length > 0) {
+            badge.textContent = orders.length;
+            badge.classList.remove('d-none');
+        } else {
+            badge.classList.add('d-none');
+        }
+
+        // Play sound if new orders became ready
+        if (orders.length > previousReadyCount && previousReadyCount > 0) {
+            playNotificationSound();
+        }
+        previousReadyCount = orders.length;
+
+        renderReadyOrders(orders);
+    } catch (error) {
+        console.error('Error loading ready orders:', error);
+    }
+}
+
+function playNotificationSound() {
+    const audio = document.getElementById('notificationSound');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log('Could not play sound:', e));
+    }
+}
+
+async function loadMyDeliveries() {
+    try {
+        const res = await fetch("/api/delivery/my-deliveries");
+        const orders = await res.json();
+        renderMyDeliveries(orders);
+    } catch (error) {
+        console.error('Error loading my deliveries:', error);
+    }
+}
+
+function renderReadyOrders(orders) {
+    const container = document.getElementById('ready-orders-list');
+    if (orders.length === 0) {
+        container.innerHTML = '<p class="text-muted">No orders ready for delivery</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    orders.forEach(order => {
+        const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
+        html += `
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">Order #${order.id} - ${order.name}</h6>
+                    <small class="text-muted">${ingredients || 'No items'}</small>
+                </div>
+                <button class="btn btn-sm btn-primary" onclick="collectOrder(${order.id})">Collect</button>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function renderMyDeliveries(orders) {
+    const container = document.getElementById('my-deliveries-list');
+    if (orders.length === 0) {
+        container.innerHTML = '<p class="text-muted">No active deliveries</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    orders.forEach(order => {
+        const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
+        html += `
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">Order #${order.id} - ${order.name}</h6>
+                    <small class="text-muted">${ingredients || 'No items'}</small><br>
+                    <small class="text-muted">Collected at: ${new Date(order.collected_at).toLocaleString()}</small>
+                </div>
+                <button class="btn btn-sm btn-success" onclick="deliverOrder(${order.id})">Mark Delivered</button>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+async function collectOrder(orderId) {
+    try {
+        const res = await fetch(`/api/orders/${orderId}/collect`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const result = await res.json();
+        if (result.success) {
+            loadReadyOrders();
+            loadMyDeliveries();
+        }
+    } catch (error) {
+        console.error('Error collecting order:', error);
+        alert('Failed to collect order');
+    }
+}
+
+async function deliverOrder(orderId) {
+    try {
+        const res = await fetch(`/api/orders/${orderId}/deliver`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const result = await res.json();
+        if (result.success) {
+            loadMyDeliveries();
+            alert('Order marked as delivered!');
+        }
+    } catch (error) {
+        console.error('Error delivering order:', error);
+        alert('Failed to mark order as delivered');
+    }
+}
+
+// Auto-refresh delivery tab
+document.getElementById('delivery-tab')?.addEventListener('shown.bs.tab', function() {
+    loadReadyOrders();
+    loadMyDeliveries();
+});
+
+// Refresh delivery data every 5 seconds
+// Always check ready orders for badge/notification, only refresh display if tab is active
+setInterval(() => {
+    const deliveryTab = document.getElementById('delivery-section');
+    if (deliveryTab && deliveryTab.classList.contains('active')) {
+        loadReadyOrders();
+        loadMyDeliveries();
+    } else {
+        // Still check for badge updates even when not on delivery tab
+        fetch("/api/delivery/ready-orders")
+            .then(res => res.json())
+            .then(orders => {
+                const badge = document.getElementById('delivery-badge');
+                if (orders.length > 0) {
+                    badge.textContent = orders.length;
+                    badge.classList.remove('d-none');
+                } else {
+                    badge.classList.add('d-none');
+                }
+
+                // Play sound if new orders became ready
+                if (orders.length > previousReadyCount && previousReadyCount > 0) {
+                    playNotificationSound();
+                }
+                previousReadyCount = orders.length;
+            })
+            .catch(e => console.error('Error checking ready orders:', e));
+    }
+}, 5000);
+{% endif %}
+
+// Order history function
+async function loadOrderHistory() {
+    try {
+        const res = await fetch("/api/user/order-history");
+        const orders = await res.json();
+        renderOrderHistory(orders);
+    } catch (error) {
+        console.error('Error loading order history:', error);
+    }
+}
+
+function renderOrderHistory(orders) {
+    const container = document.getElementById('order-history-list');
+    if (orders.length === 0) {
+        container.innerHTML = '<p class="text-muted">No order history</p>';
+        return;
+    }
+
+    let html = '<div class="list-group">';
+    orders.slice().reverse().forEach(order => {
+        const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
+        const deliveredAt = order.delivered_at ? new Date(order.delivered_at).toLocaleString() : 'N/A';
+        html += `
+        <div class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">Order #${order.id}</h6>
+                    <small class="text-muted">${ingredients || 'No items'}</small><br>
+                    <small class="text-muted">Delivered: ${deliveredAt}</small>
+                </div>
+            </div>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Load order history when collapse is shown
+document.getElementById('orderHistory')?.addEventListener('shown.bs.collapse', loadOrderHistory);
 </script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

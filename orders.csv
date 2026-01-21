@@ -1,1 +1,8 @@
-id,name,tomatoes,saute_onions,gherkins,jalapeno,cheese,lettuce,chefs_special,peri_peri_lemon_and_herb,burger_sauce,ketchup,bbq,mayo,peri_peri_medium,water,coke,tropicana,milk,status,timestamp
+id,name,tomatoes,saute_onions,gherkins,jalapeno,cheese,lettuce,chefs_special,peri_peri_lemon_and_herb,burger_sauce,bbq,mayo,peri_peri_medium,water,coke,tropicana,milk,ketchup,status,timestamp,collected_by,collected_at,delivered_at
+1,Sidrah,True,False,False,False,False,False,False,True,False,False,False,False,True,False,False,False,False,delivered,2026-01-21T11:54:00.769276,Kais,2026-01-21T11:54:27.744863,2026-01-21T11:54:43.290235
+2,Sidrah,False,False,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T11:54:55.048235,Kais,2026-01-21T11:55:15.036828,2026-01-21T11:55:21.786895
+3,Sidrah,False,False,False,True,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T12:00:14.631920,Kais,2026-01-21T12:01:36.456293,2026-01-21T12:01:39.983624
+4,Kais,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T12:01:11.007119,Kais,2026-01-21T12:01:37.621802,2026-01-21T12:01:41.938394
+5,Sidrah,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T12:01:56.709084,Kais,2026-01-21T12:02:30.838986,2026-01-21T12:02:32.283248
+6,Kais,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T12:02:19.953699,Kais,2026-01-21T12:02:31.754924,2026-01-21T12:02:33.491509
+7,Sidrah,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,False,delivered,2026-01-21T12:02:37.608109,Kais,2026-01-21T12:02:59.506922,2026-01-21T12:03:00.359419

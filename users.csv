@@ -1,3 +1,4 @@
-id,username,password,role,name,gender
-1,admin,admin123,admin,Administrator,admin
-2,sidrah,Sidrah123,user,Sidrah,female
+id,username,password,role,name,gender,is_delivery
+1,admin,admin123,admin,Administrator,admin,
+2,sidrah,Sidrah123,user,Sidrah,female,
+3,kais,Kais123,user,Kais,kid,True

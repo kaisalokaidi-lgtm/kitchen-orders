@@ -23,3 +23,6 @@ order_id,ingredient,checked
 1,chefs_special,True
 1,ketchup,True
 1,tomatoes,True
+1,peri_peri_lemon_and_herb,True
+3,jalapeno,True
+4,tomatoes,True

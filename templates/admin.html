@@ -135,6 +135,13 @@
                             <option value="admin">Admin (Full access)</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="isDelivery">
+                            <label class="form-check-label" for="isDelivery">🚚 Delivery Person</label>
+                        </div>
+                        <small class="text-muted">Delivery users can collect and deliver orders</small>
+                    </div>
                     <button class="btn btn-primary">Add User</button>
                 </form>
                 <div id="user-success" class="alert alert-success mt-3 d-none">User added!</div>
@@ -297,6 +304,7 @@ async function loadUsers() {
             <div>
                 <strong>${user.name}</strong> ${genderEmoji[user.gender] || ''}
                 <span class="badge ${user.role === 'admin' ? 'bg-danger' : 'bg-primary'} category-badge">${user.role}</span>
+                ${user.is_delivery === 'True' ? '<span class="badge bg-success category-badge">🚚 Delivery</span>' : ''}
                 <br>
                 <small class="text-muted">Username: ${user.username}</small>
             </div>
@@ -352,15 +360,16 @@ document.getElementById("userForm").addEventListener("submit", async e => {
         username: document.getElementById("userUsername").value,
         password: document.getElementById("userPassword").value,
         gender: document.getElementById("userGender").value,
-        role: document.getElementById("userRole").value
+        role: document.getElementById("userRole").value,
+        is_delivery: document.getElementById("isDelivery").checked ? "True" : "False"
     };
-    
+
     await fetch("/api/users", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
     });
-    
+
     document.getElementById("user-success").classList.remove("d-none");
     setTimeout(() => document.getElementById("user-success").classList.add("d-none"), 2000);
     e.target.reset();

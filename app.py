@@ -16,10 +16,10 @@ ORDER_SETTINGS_FILE = "order_settings.csv"
 # Initialize CSV files
 if not os.path.exists(USERS_FILE):
     with open(USERS_FILE, "w", newline="", encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
+        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender", "is_delivery"])
         writer.writeheader()
         # Add default admin
-        writer.writerow({"id": "1", "username": "admin", "password": "admin123", "role": "admin", "name": "Administrator", "gender": "admin"})
+        writer.writerow({"id": "1", "username": "admin", "password": "admin123", "role": "admin", "name": "Administrator", "gender": "admin", "is_delivery": "False"})
 
 if not os.path.exists(ORDER_SETTINGS_FILE):
     with open(ORDER_SETTINGS_FILE, "w", newline="", encoding='utf-8') as f:
@@ -73,7 +73,7 @@ def read_users():
 
 def write_users(users):
     with open(USERS_FILE, "w", newline="", encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
+        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender", "is_delivery"])
         writer.writeheader()
         writer.writerows(users)
 
@@ -106,16 +106,22 @@ def can_user_order(user_id):
 
     return False
 
+def is_user_delivery(user_id):
+    """Check if a user has delivery role"""
+    users = read_users()
+    user = next((u for u in users if u['id'] == user_id), None)
+    return user and user.get('is_delivery', 'False') == 'True'
+
 def get_user_current_order(user_id):
-    """Get user's current order if they have one"""
+    """Get user's current order if they have one (excluding delivered orders)"""
     users = read_users()
     user = next((u for u in users if u['id'] == user_id), None)
     if not user:
         return None
-    
+
     orders = read_orders()
-    # Find the most recent order for this user
-    user_orders = [o for o in orders if o.get("name") == user.get("name")]
+    # Find the most recent order for this user (excluding delivered orders)
+    user_orders = [o for o in orders if o.get("name") == user.get("name") and o.get("status") != "delivered"]
     if user_orders:
         return user_orders[-1]  # Return most recent
     return None
@@ -147,7 +153,7 @@ def get_option_keys():
     return [ing["name"].lower().replace(" ", "_") for ing in ingredients]
 
 OPTIONS = get_option_keys()
-FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
+FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
 
 if not os.path.exists(CSV_FILE):
     with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
@@ -167,7 +173,7 @@ def read_orders():
 
 def write_orders(orders):
     # Dynamically build fieldnames from current ingredients
-    current_fieldnames = ["id", "name"] + get_option_keys() + ["status", "timestamp"]
+    current_fieldnames = ["id", "name"] + get_option_keys() + ["status", "timestamp", "collected_by", "collected_at", "delivered_at"]
     with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=current_fieldnames)
         writer.writeheader()
@@ -192,7 +198,8 @@ def order_page():
     user = next((u for u in users if u['id'] == session['user_id']), None)
     can_order = can_user_order(session['user_id'])
     current_order = get_user_current_order(session['user_id'])
-    return render_template("order.html", user=user, can_order=can_order, current_order=current_order)
+    is_delivery = is_user_delivery(session['user_id'])
+    return render_template("order.html", user=user, can_order=can_order, current_order=current_order, is_delivery=is_delivery)
 
 @app.route("/login")
 def login():
@@ -255,19 +262,11 @@ def add_order():
 @app.route("/api/orders/<int:order_id>/ready", methods=["POST"])
 def mark_ready(order_id):
     orders = read_orders()
-    users = read_users()
-    
+
     for order in orders:
         if int(order["id"]) == order_id:
             order["status"] = "ready"
-            
-            # Disable ordering for this user
-            user = next((u for u in users if u['name'] == order['name']), None)
-            if user:
-                settings = read_order_settings()
-                settings[f"user_{user['id']}"] = "False"
-                write_order_settings(settings)
-    
+
     write_orders(orders)
     return {"success": True}
 
@@ -314,32 +313,99 @@ def start_order(order_id):
     write_orders(orders)
     return {"success": True}
 
-@app.route("/api/orders/<int:order_id>/clear", methods=["POST"])
-def clear_order(order_id):
-    """Clear a ready order and allow user to order again"""
+@app.route("/api/delivery/ready-orders", methods=["GET"])
+@login_required
+def get_ready_orders_for_delivery():
+    """Get all orders that are ready for delivery"""
+    orders = read_orders()
+    ready_orders = [o for o in orders if o.get("status") == "ready"]
+    return jsonify(ready_orders)
+
+@app.route("/api/delivery/my-deliveries", methods=["GET"])
+@login_required
+def get_my_deliveries():
+    """Get orders currently being delivered by this user"""
+    users = read_users()
+    user = next((u for u in users if u['id'] == session['user_id']), None)
+    if not user:
+        return {"error": "User not found"}, 404
+
+    orders = read_orders()
+    my_deliveries = [o for o in orders if o.get("status") == "out_for_delivery" and o.get("collected_by") == user.get("name")]
+    return jsonify(my_deliveries)
+
+@app.route("/api/orders/<int:order_id>/collect", methods=["POST"])
+@login_required
+def collect_order(order_id):
+    """Mark an order as collected for delivery"""
     orders = read_orders()
     users = read_users()
-    
-    order_to_clear = None
+    user = next((u for u in users if u['id'] == session['user_id']), None)
+
+    if not user:
+        return {"error": "User not found"}, 404
+
+    if not is_user_delivery(session['user_id']):
+        return {"error": "Only delivery users can collect orders"}, 403
+
     for order in orders:
         if int(order["id"]) == order_id:
-            order_to_clear = order
+            order["status"] = "out_for_delivery"
+            order["collected_by"] = user.get("name")
+            order["collected_at"] = datetime.now().isoformat()
             break
-    
-    if order_to_clear:
-        # Remove the order
-        orders = [o for o in orders if int(o.get("id", 0)) != order_id]
+
+    write_orders(orders)
+    return {"success": True}
+
+@app.route("/api/orders/<int:order_id>/deliver", methods=["POST"])
+@login_required
+def deliver_order(order_id):
+    """Mark an order as delivered"""
+    orders = read_orders()
+    users = read_users()
+
+    order_to_deliver = None
+    for order in orders:
+        if int(order["id"]) == order_id:
+            order["status"] = "delivered"
+            order["delivered_at"] = datetime.now().isoformat()
+            order_to_deliver = order
+            break
+
+    if order_to_deliver:
         write_orders(orders)
-        
-        # Re-enable ordering for this user by setting their override to True
-        user = next((u for u in users if u['name'] == order_to_clear['name']), None)
+
+        # Re-enable ordering for this user
+        user = next((u for u in users if u['name'] == order_to_deliver['name']), None)
         if user:
             settings = read_order_settings()
-            # Set user-specific setting to True (override)
             settings[f"user_{user['id']}"] = "True"
             write_order_settings(settings)
-    
+
     return {"success": True}
+
+@app.route("/api/orders/delivered", methods=["GET"])
+@login_required
+def get_delivered_orders():
+    """Get all delivered orders"""
+    orders = read_orders()
+    delivered_orders = [o for o in orders if o.get("status") == "delivered"]
+    # Return most recent 20
+    return jsonify(delivered_orders[-20:] if len(delivered_orders) > 20 else delivered_orders)
+
+@app.route("/api/user/order-history", methods=["GET"])
+@login_required
+def get_user_order_history():
+    """Get current user's order history"""
+    users = read_users()
+    user = next((u for u in users if u['id'] == session['user_id']), None)
+    if not user:
+        return {"error": "User not found"}, 404
+
+    orders = read_orders()
+    user_delivered_orders = [o for o in orders if o.get("name") == user.get("name") and o.get("status") == "delivered"]
+    return jsonify(user_delivered_orders)
 
 @app.route("/api/user/order-status", methods=["GET"])
 def get_user_order_status():
@@ -456,7 +522,8 @@ def add_user():
         "password": data["password"],
         "role": data.get("role", "user"),
         "name": data["name"],
-        "gender": data.get("gender", "male")
+        "gender": data.get("gender", "male"),
+        "is_delivery": data.get("is_delivery", "False")
     }
     users.append(new_user)
     write_users(users)
