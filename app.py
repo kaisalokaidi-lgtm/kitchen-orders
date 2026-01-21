@@ -15,14 +15,14 @@ ORDER_SETTINGS_FILE = "order_settings.csv"
 
 # Initialize CSV files
 if not os.path.exists(USERS_FILE):
-    with open(USERS_FILE, "w", newline="") as f:
+    with open(USERS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
         writer.writeheader()
         # Add default admin
         writer.writerow({"id": "1", "username": "admin", "password": "admin123", "role": "admin", "name": "Administrator", "gender": "admin"})
 
 if not os.path.exists(ORDER_SETTINGS_FILE):
-    with open(ORDER_SETTINGS_FILE, "w", newline="") as f:
+    with open(ORDER_SETTINGS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["setting", "value"])
         writer.writeheader()
         # Default: nobody can order
@@ -34,7 +34,7 @@ if not os.path.exists(ORDER_SETTINGS_FILE):
         ])
 
 if not os.path.exists(INGREDIENTS_FILE):
-    with open(INGREDIENTS_FILE, "w", newline="") as f:
+    with open(INGREDIENTS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji"])
         writer.writeheader()
         # Add default ingredients
@@ -62,11 +62,11 @@ if not os.path.exists(INGREDIENTS_FILE):
 def read_ingredients():
     if not os.path.exists(INGREDIENTS_FILE):
         return []
-    with open(INGREDIENTS_FILE, newline="") as f:
+    with open(INGREDIENTS_FILE, newline="", encoding='utf-8') as f:
         return list(csv.DictReader(f))
 
 def write_ingredients(ingredients):
-    with open(INGREDIENTS_FILE, "w", newline="") as f:
+    with open(INGREDIENTS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["id", "name", "category", "emoji"])
         writer.writeheader()
         writer.writerows(ingredients)
@@ -74,11 +74,11 @@ def write_ingredients(ingredients):
 def read_users():
     if not os.path.exists(USERS_FILE):
         return []
-    with open(USERS_FILE, newline="") as f:
+    with open(USERS_FILE, newline="", encoding='utf-8') as f:
         return list(csv.DictReader(f))
 
 def write_users(users):
-    with open(USERS_FILE, "w", newline="") as f:
+    with open(USERS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
         writer.writeheader()
         writer.writerows(users)
@@ -86,12 +86,12 @@ def write_users(users):
 def read_order_settings():
     if not os.path.exists(ORDER_SETTINGS_FILE):
         return {}
-    with open(ORDER_SETTINGS_FILE, newline="") as f:
+    with open(ORDER_SETTINGS_FILE, newline="", encoding='utf-8') as f:
         rows = list(csv.DictReader(f))
         return {row["setting"]: row["value"] for row in rows}
 
 def write_order_settings(settings_dict):
-    with open(ORDER_SETTINGS_FILE, "w", newline="") as f:
+    with open(ORDER_SETTINGS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["setting", "value"])
         writer.writeheader()
         for key, value in settings_dict.items():
@@ -165,25 +165,25 @@ OPTIONS = get_option_keys()
 FIELDNAMES = ["id", "name"] + OPTIONS + ["status", "timestamp"]
 
 if not os.path.exists(CSV_FILE):
-    with open(CSV_FILE, "w", newline="") as f:
+    with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
 
 if not os.path.exists(PROGRESS_FILE):
-    with open(PROGRESS_FILE, "w", newline="") as f:
+    with open(PROGRESS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["order_id", "ingredient", "checked"])
         writer.writeheader()
 
 def read_orders():
     if not os.path.exists(CSV_FILE):
         return []
-    with open(CSV_FILE, newline="") as f:
+    with open(CSV_FILE, newline="", encoding='utf-8') as f:
         return list(csv.DictReader(f))
 
 def write_orders(orders):
     # Dynamically build fieldnames from current ingredients
     current_fieldnames = ["id", "name"] + get_option_keys() + ["status", "timestamp"]
-    with open(CSV_FILE, "w", newline="") as f:
+    with open(CSV_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=current_fieldnames)
         writer.writeheader()
         writer.writerows(orders)
@@ -191,11 +191,11 @@ def write_orders(orders):
 def read_progress():
     if not os.path.exists(PROGRESS_FILE):
         return []
-    with open(PROGRESS_FILE, newline="") as f:
+    with open(PROGRESS_FILE, newline="", encoding='utf-8') as f:
         return list(csv.DictReader(f))
 
 def write_progress(progress):
-    with open(PROGRESS_FILE, "w", newline="") as f:
+    with open(PROGRESS_FILE, "w", newline="", encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=["order_id", "ingredient", "checked"])
         writer.writeheader()
         writer.writerows(progress)
