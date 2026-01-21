@@ -64,6 +64,38 @@
         <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
     </div>
 </div>
+
+{% if current_order %}
+<!-- Show current order status -->
+<div class="alert {% if current_order.status == 'ready' %}alert-success{% else %}alert-info{% endif %}" id="orderStatus">
+    <h4>📦 Your Order Status</h4>
+    <p class="mb-2"><strong>Order #<span id="orderId">{{ current_order.id }}</span></strong></p>
+    <p class="mb-0" id="statusText">
+        Status: 
+        {% if current_order.status == 'pending' %}
+            <span class="badge bg-warning">⏳ Pending - Waiting to be prepared</span>
+        {% elif current_order.status == 'preparing' %}
+            <span class="badge bg-primary">🔥 Preparing - Your order is being made!</span>
+        {% elif current_order.status == 'ready' %}
+            <span class="badge bg-success">✅ Ready - Your order is ready for delivery!</span>
+        {% endif %}
+    </p>
+    {% if current_order.status == 'ready' %}
+        <small class="text-muted">Please collect your order. You'll be able to order again after the admin clears this order.</small>
+    {% else %}
+        <small class="text-muted">You can order again once this order is ready and cleared</small>
+    {% endif %}
+</div>
+{% elif not can_order %}
+<!-- Show friendly message when user can't order -->
+<div class="alert alert-warning text-center" id="orderClosed">
+    <h4>🍔 Orders Not Available</h4>
+    <p>Sorry, ordering is currently closed. Please wait for the admin to open orders.</p>
+    <small class="text-muted">This will update automatically when ordering is available</small>
+</div>
+{% else %}
+<!-- Show order form -->
+<div id="orderFormContainer">
 <form id="orderForm" class="mt-4">
     <input type="hidden" id="customerName" value="{{ user.name }}">
 
@@ -74,7 +106,12 @@
 
     <button class="btn btn-primary w-100 w-sm-auto">Place Order</button>
 </form>
-<div id="success" class="alert alert-success mt-3 d-none">Order placed!</div>
+</div>
+{% endif %}
+
+<div id="success" class="alert alert-success mt-3 d-none">Order placed successfully! 🎉</div>
+<div id="error" class="alert alert-danger mt-3 d-none"></div>
+
 <script>
 let ingredients = [];
 
@@ -120,7 +157,7 @@ function renderCategory(category, title, sectionId, inputType) {
     section.innerHTML = html;
 }
 
-document.getElementById("orderForm").addEventListener("submit", async e => {
+document.getElementById("orderForm")?.addEventListener("submit", async e => {
     e.preventDefault();
     
     const payload = { name: document.getElementById("customerName").value };
@@ -137,17 +174,224 @@ document.getElementById("orderForm").addEventListener("submit", async e => {
         }
     });
     
-    await fetch("/api/orders", {
+    const response = await fetch("/api/orders", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
     });
-    document.getElementById("success").classList.remove("d-none");
-    e.target.reset();
-    setTimeout(() => document.getElementById("success").classList.add("d-none"), 2000);
+    
+    const result = await response.json();
+    
+    if (result.success) {
+        document.getElementById("success").classList.remove("d-none");
+        e.target.reset();
+        setTimeout(() => {
+            document.getElementById("success").classList.add("d-none");
+            checkOrderStatus();
+        }, 1500);
+    } else {
+        const errorDiv = document.getElementById("error");
+        errorDiv.textContent = result.message || "Failed to place order";
+        errorDiv.classList.remove("d-none");
+    }
 });
 
-loadIngredients();
+if (document.getElementById("orderForm")) {
+    loadIngredients();
+}
+
+// Live status update function
+async function checkOrderStatus() {
+    try {
+        const res = await fetch("/api/user/order-status");
+        const data = await res.json();
+        
+        const hasOrderStatus = document.getElementById("orderStatus");
+        const hasOrderClosed = document.getElementById("orderClosed");
+        const hasOrderForm = document.getElementById("orderFormContainer");
+        
+        // If user has an active order
+        if (data.current_order) {
+            const status = data.current_order.status;
+            
+            // If showing wrong view, switch to order status view
+            if (!hasOrderStatus && (hasOrderForm || hasOrderClosed)) {
+                showOrderStatus(data.current_order);
+                return;
+            }
+            
+            // Update status if it changed
+            if (hasOrderStatus) {
+                updateOrderStatus(data.current_order);
+            }
+        }
+        // If user can order now
+        else if (data.can_order) {
+            if (!hasOrderForm) {
+                showOrderForm();
+            }
+        }
+        // User cannot order
+        else {
+            if (!hasOrderClosed) {
+                showOrderClosed();
+            }
+        }
+    } catch (error) {
+        console.error('Error checking order status:', error);
+    }
+}
+
+function showOrderStatus(order) {
+    const container = document.querySelector('.container');
+    // Hide other views
+    const orderClosed = document.getElementById("orderClosed");
+    const orderForm = document.getElementById("orderFormContainer");
+    if (orderClosed) orderClosed.remove();
+    if (orderForm) orderForm.remove();
+    
+    // Show order status
+    let statusBadge = '';
+    let alertClass = 'alert-info';
+    let message = 'You can order again once this order is ready and cleared';
+    
+    if (order.status === 'pending') {
+        statusBadge = '<span class="badge bg-warning">⏳ Pending - Waiting to be prepared</span>';
+    } else if (order.status === 'preparing') {
+        statusBadge = '<span class="badge bg-primary">🔥 Preparing - Your order is being made!</span>';
+    } else if (order.status === 'ready') {
+        statusBadge = '<span class="badge bg-success">✅ Ready - Your order is ready for pickup!</span>';
+        alertClass = 'alert-success';
+        message = "Please collect your order. You'll be able to order again after the admin clears this order.";
+    }
+    
+    if (!document.getElementById("orderStatus")) {
+        const statusHTML = `
+        <div class="alert ${alertClass}" id="orderStatus">
+            <h4>📦 Your Order Status</h4>
+            <p class="mb-2"><strong>Order #<span id="orderId">${order.id}</span></strong></p>
+            <p class="mb-0" id="statusText">Status: ${statusBadge}</p>
+            <small class="text-muted">${message}</small>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', statusHTML);
+    }
+}
+
+function updateOrderStatus(order) {
+    const statusText = document.getElementById("statusText");
+    const alertBox = document.getElementById("orderStatus");
+    const orderId = document.getElementById("orderId");
+    
+    if (orderId) orderId.textContent = order.id;
+    
+    let badge = '';
+    let alertClass = 'alert alert-info';
+    
+    if (order.status === 'pending') {
+        badge = '<span class="badge bg-warning">⏳ Pending - Waiting to be prepared</span>';
+    } else if (order.status === 'preparing') {
+        badge = '<span class="badge bg-primary">🔥 Preparing - Your order is being made!</span>';
+    } else if (order.status === 'ready') {
+        badge = '<span class="badge bg-success">✅ Ready - Your order is ready for pickup!</span>';
+        alertClass = 'alert alert-success';
+    }
+    
+    if (statusText) statusText.innerHTML = `Status: ${badge}`;
+    if (alertBox) alertBox.className = alertClass;
+}
+
+function showOrderForm() {
+    const container = document.querySelector('.container');
+    // Hide other views
+    const orderClosed = document.getElementById("orderClosed");
+    const orderStatus = document.getElementById("orderStatus");
+    if (orderClosed) orderClosed.remove();
+    if (orderStatus) orderStatus.remove();
+    
+    if (!document.getElementById("orderFormContainer")) {
+        const formHTML = `
+        <div id="orderFormContainer">
+            <form id="orderForm" class="mt-4">
+                <input type="hidden" id="customerName" value="{{ user.name }}">
+                <div id="salads-section"></div>
+                <div id="sauces-section"></div>
+                <div id="drinks-section"></div>
+                <button class="btn btn-primary w-100 w-sm-auto">Place Order</button>
+            </form>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', formHTML);
+        
+        // Reload ingredients and setup form
+        loadIngredients().then(() => {
+            setupOrderForm();
+        });
+    }
+}
+
+function showOrderClosed() {
+    const container = document.querySelector('.container');
+    // Hide other views
+    const orderForm = document.getElementById("orderFormContainer");
+    const orderStatus = document.getElementById("orderStatus");
+    if (orderForm) orderForm.remove();
+    if (orderStatus) orderStatus.remove();
+    
+    if (!document.getElementById("orderClosed")) {
+        const closedHTML = `
+        <div class="alert alert-warning text-center" id="orderClosed">
+            <h4>🍔 Orders Not Available</h4>
+            <p>Sorry, ordering is currently closed. Please wait for the admin to open orders.</p>
+            <small class="text-muted">This will update automatically when ordering is available</small>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', closedHTML);
+    }
+}
+
+function setupOrderForm() {
+    const form = document.getElementById("orderForm");
+    if (!form) return;
+    
+    form.addEventListener("submit", async e => {
+        e.preventDefault();
+        
+        const payload = { name: document.getElementById("customerName").value };
+        
+        // Collect all ingredient selections
+        ingredients.forEach(ing => {
+            const key = ing.name.toLowerCase().replace(/ /g, '_');
+            if (ing.category === 'drinks') {
+                const selectedDrink = document.querySelector('input[name="drink"]:checked')?.value || '';
+                payload[key] = selectedDrink === key;
+            } else {
+                const checkbox = document.getElementById(key);
+                payload[key] = checkbox ? checkbox.checked : false;
+            }
+        });
+        
+        const response = await fetch("/api/orders", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById("success").classList.remove("d-none");
+            setTimeout(() => {
+                document.getElementById("success").classList.add("d-none");
+                checkOrderStatus(); // Refresh to show order status
+            }, 1500);
+        } else {
+            const errorDiv = document.getElementById("error");
+            errorDiv.textContent = result.message || "Failed to place order";
+            errorDiv.classList.remove("d-none");
+        }
+    });
+}
+
+// Check status every 3 seconds
+setInterval(checkOrderStatus, 3000);
 </script>
 </body>
 </html>

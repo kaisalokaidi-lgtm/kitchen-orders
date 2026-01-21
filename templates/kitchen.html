@@ -182,7 +182,7 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
         <tr class="${rowClass}" ${rowClick}>
             <td>${o.name}</td>
             <td>${badges || "—"}</td>
-            <td>${actionButton}</td>
+            <td>${actionButton} ${status === 'ready' ? `<button class="btn btn-danger btn-sm ms-2" onclick="event.stopPropagation(); clearOrder(${o.id})">Clear</button>` : ''}</td>
         </tr>
         ${isExpanded && allowExpand ? `
         <tr>
@@ -255,6 +255,12 @@ async function updateCheck(orderId, ingredient, index) {
 }
 async function markReady(id) {
     await fetch(`/api/orders/${id}/ready`, { method: "POST" });
+    loadOrders();
+}
+
+async function clearOrder(id) {
+    if (!confirm('Clear this order? This will allow the user to order again.')) return;
+    await fetch(`/api/orders/${id}/clear`, { method: "POST" });
     loadOrders();
 }
 

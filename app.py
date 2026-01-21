@@ -11,14 +11,27 @@ CSV_FILE = "orders.csv"
 PROGRESS_FILE = "order_progress.csv"
 INGREDIENTS_FILE = "ingredients.csv"
 USERS_FILE = "users.csv"
+ORDER_SETTINGS_FILE = "order_settings.csv"
 
 # Initialize CSV files
 if not os.path.exists(USERS_FILE):
     with open(USERS_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name"])
+        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
         writer.writeheader()
         # Add default admin
-        writer.writerow({"id": "1", "username": "admin", "password": "admin123", "role": "admin", "name": "Administrator"})
+        writer.writerow({"id": "1", "username": "admin", "password": "admin123", "role": "admin", "name": "Administrator", "gender": "admin"})
+
+if not os.path.exists(ORDER_SETTINGS_FILE):
+    with open(ORDER_SETTINGS_FILE, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["setting", "value"])
+        writer.writeheader()
+        # Default: nobody can order
+        writer.writerows([
+            {"setting": "male_enabled", "value": "False"},
+            {"setting": "female_enabled", "value": "False"},
+            {"setting": "kid_enabled", "value": "False"},
+            {"setting": "all_enabled", "value": "False"}
+        ])
 
 if not os.path.exists(INGREDIENTS_FILE):
     with open(INGREDIENTS_FILE, "w", newline="") as f:
@@ -66,9 +79,61 @@ def read_users():
 
 def write_users(users):
     with open(USERS_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name"])
+        writer = csv.DictWriter(f, fieldnames=["id", "username", "password", "role", "name", "gender"])
         writer.writeheader()
         writer.writerows(users)
+
+def read_order_settings():
+    if not os.path.exists(ORDER_SETTINGS_FILE):
+        return {}
+    with open(ORDER_SETTINGS_FILE, newline="") as f:
+        rows = list(csv.DictReader(f))
+        return {row["setting"]: row["value"] for row in rows}
+
+def write_order_settings(settings_dict):
+    with open(ORDER_SETTINGS_FILE, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["setting", "value"])
+        writer.writeheader()
+        for key, value in settings_dict.items():
+            writer.writerow({"setting": key, "value": value})
+
+def can_user_order(user_id):
+    """Check if a user can place an order"""
+    users = read_users()
+    user = next((u for u in users if u['id'] == user_id), None)
+    if not user:
+        return False
+    
+    settings = read_order_settings()
+    
+    # Check if all orders are enabled
+    if settings.get("all_enabled") == "True":
+        return True
+    
+    # Check if user's gender category is enabled
+    gender = user.get("gender", "")
+    if settings.get(f"{gender}_enabled") == "True":
+        return True
+    
+    # Check if specific user is enabled
+    if settings.get(f"user_{user_id}") == "True":
+        return True
+    
+    return False
+
+def get_user_current_order(user_id):
+    """Get user's current order if they have one"""
+    users = read_users()
+    user = next((u for u in users if u['id'] == user_id), None)
+    if not user:
+        return None
+    
+    orders = read_orders()
+    # Find the most recent order for this user
+    user_orders = [o for o in orders if o.get("name") == user.get("name")]
+    if user_orders:
+        return user_orders[-1]  # Return most recent
+    return None
 
 # Login decorators
 def login_required(f):
@@ -140,7 +205,9 @@ def write_progress(progress):
 def order_page():
     users = read_users()
     user = next((u for u in users if u['id'] == session['user_id']), None)
-    return render_template("order.html", user=user)
+    can_order = can_user_order(session['user_id'])
+    current_order = get_user_current_order(session['user_id'])
+    return render_template("order.html", user=user, can_order=can_order, current_order=current_order)
 
 @app.route("/login")
 def login():
@@ -167,6 +234,15 @@ def get_orders():
 
 @app.route("/api/orders", methods=["POST"])
 def add_order():
+    # Check if user can order
+    if not can_user_order(session.get('user_id')):
+        return {"success": False, "message": "You don't have permission to order right now"}, 403
+    
+    # Check if user already has an order (any status)
+    current_order = get_user_current_order(session.get('user_id'))
+    if current_order:
+        return {"success": False, "message": "You already have an order. Please wait for admin to clear it."}, 400
+    
     data = request.json
     orders = read_orders()
     
@@ -194,9 +270,19 @@ def add_order():
 @app.route("/api/orders/<int:order_id>/ready", methods=["POST"])
 def mark_ready(order_id):
     orders = read_orders()
+    users = read_users()
+    
     for order in orders:
         if int(order["id"]) == order_id:
             order["status"] = "ready"
+            
+            # Disable ordering for this user
+            user = next((u for u in users if u['name'] == order['name']), None)
+            if user:
+                settings = read_order_settings()
+                settings[f"user_{user['id']}"] = "False"
+                write_order_settings(settings)
+    
     write_orders(orders)
     return {"success": True}
 
@@ -242,6 +328,54 @@ def start_order(order_id):
             order["status"] = "preparing"
     write_orders(orders)
     return {"success": True}
+
+@app.route("/api/orders/<int:order_id>/clear", methods=["POST"])
+def clear_order(order_id):
+    """Clear a ready order and allow user to order again"""
+    orders = read_orders()
+    users = read_users()
+    
+    order_to_clear = None
+    for order in orders:
+        if int(order["id"]) == order_id:
+            order_to_clear = order
+            break
+    
+    if order_to_clear:
+        # Remove the order
+        orders = [o for o in orders if int(o.get("id", 0)) != order_id]
+        write_orders(orders)
+        
+        # Re-enable ordering for this user by setting their override to True
+        user = next((u for u in users if u['name'] == order_to_clear['name']), None)
+        if user:
+            settings = read_order_settings()
+            # Set user-specific setting to True (override)
+            settings[f"user_{user['id']}"] = "True"
+            write_order_settings(settings)
+    
+    return {"success": True}
+
+@app.route("/api/user/order-status", methods=["GET"])
+def get_user_order_status():
+    """Get current user's order status and permission to order"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return {"error": "Not authenticated"}, 401
+    
+    users = read_users()
+    user = next((u for u in users if u['id'] == user_id), None)
+    if not user:
+        return {"error": "User not found"}, 404
+    
+    can_order = can_user_order(user_id)
+    current_order = get_user_current_order(user_id)
+    
+    return jsonify({
+        "can_order": can_order,
+        "current_order": current_order,
+        "user_name": user.get("name")
+    })
 
 @app.route("/api/ingredients", methods=["GET"])
 def get_ingredients():
@@ -312,7 +446,8 @@ def add_user():
         "username": data["username"],
         "password": data["password"],
         "role": data.get("role", "user"),
-        "name": data["name"]
+        "name": data["name"],
+        "gender": data.get("gender", "male")
     }
     users.append(new_user)
     write_users(users)
@@ -324,6 +459,51 @@ def delete_user(user_id):
     users = [u for u in users if int(u["id"]) != user_id]
     write_users(users)
     return {"success": True}
+
+@app.route("/api/order-settings", methods=["GET"])
+def get_order_settings():
+    settings = read_order_settings()
+    users = read_users()
+    # Include user-specific settings
+    user_settings = []
+    for user in users:
+        if user['role'] != 'admin':
+            user_settings.append({
+                "id": user["id"],
+                "name": user["name"],
+                "gender": user.get("gender", ""),
+                "can_order": settings.get(f"user_{user['id']}") == "True"
+            })
+    return jsonify({
+        "all_enabled": settings.get("all_enabled") == "True",
+        "male_enabled": settings.get("male_enabled") == "True",
+        "female_enabled": settings.get("female_enabled") == "True",
+        "kid_enabled": settings.get("kid_enabled") == "True",
+        "users": user_settings
+    })
+
+@app.route("/api/order-settings", methods=["POST"])
+def update_order_settings():
+    data = request.json
+    settings = read_order_settings()
+    
+    # Update category settings
+    if "all_enabled" in data:
+        settings["all_enabled"] = str(data["all_enabled"])
+    if "male_enabled" in data:
+        settings["male_enabled"] = str(data["male_enabled"])
+    if "female_enabled" in data:
+        settings["female_enabled"] = str(data["female_enabled"])
+    if "kid_enabled" in data:
+        settings["kid_enabled"] = str(data["kid_enabled"])
+    
+    # Update user-specific settings
+    if "user_id" in data:
+        settings[f"user_{data['user_id']}"] = str(data.get("enabled", False))
+    
+    write_order_settings(settings)
+    return {"success": True}
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
