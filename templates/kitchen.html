@@ -76,7 +76,8 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th></th></tr>
+                <!-- Removed Order Count column -->
+                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="pending-orders"></tbody>
         </table>
@@ -89,7 +90,8 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th></th></tr>
+                <!-- Removed Order Count column -->
+                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
             </thead>
             <tbody id="preparing-orders"></tbody>
         </table>
@@ -102,7 +104,8 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Time</th></tr>
+                <!-- Removed Order Count column -->
+                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Time</th></tr>
             </thead>
             <tbody id="ready-orders"></tbody>
         </table>
@@ -115,7 +118,8 @@
     <div class="table-responsive">
         <table class="table">
             <thead>
-                <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
+                <!-- Removed Order Count column; keep collected columns -->
+                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
             </thead>
             <tbody id="out-for-delivery-orders"></tbody>
         </table>
@@ -131,7 +135,8 @@
         <div class="table-responsive">
             <table class="table">
                 <thead>
-                    <tr><th>Order #</th><th>Person Type</th><th>Order Count</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
+                    <!-- Removed Order Count column; keep delivered columns -->
+                    <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
                 </thead>
                 <tbody id="delivered-orders"></tbody>
             </table>
@@ -219,7 +224,8 @@ async function startOrder(orderId) {
 }
 
 // Function to render a single order row (main row)
-function renderOrderRow(o, allowExpand, status, selectedIngredients, actionButton) {
+// actionCellsHtml should contain one or more <td>...</td> cells as needed
+function renderOrderRow(o, allowExpand, status, selectedIngredients, actionCellsHtml) {
     const rowClass = allowExpand ? 'order-row' : '';
     const rowClick = allowExpand ? `onclick="toggleOrder('${o.id}')"` : '';
     const badges = selectedIngredients.map(k =>
@@ -230,15 +236,15 @@ function renderOrderRow(o, allowExpand, status, selectedIngredients, actionButto
     <tr class="${rowClass}" ${rowClick} id="order-main-row-${o.id}">
         <td><strong>#${o.id}</strong></td>
         <td>${o.person_type || '—'}</td>
-        <td>#${o.order_count || '1'}</td>
         <td>${badges || "—"}</td>
-        <td>${actionButton}</td>
+        ${actionCellsHtml}
     </tr>`;
 }
 
 // Function to render expanded order details (checklist)
 function renderExpandedOrderDetails(o, selectedIngredients, checkedIngredients) {
     return `
+    <!-- colspan uses max number of columns in tables (5) to cover all table layouts -->
     <tr id="order-details-row-${o.id}">
         <td colspan="5" class="p-0">
             <div class="order-details">
@@ -311,15 +317,22 @@ async function updateOrderDisplay(orderId) {
     }
     const checkedIngredients = orderProgressCache[updatedOrder.id] || [];
 
-    let actionButton = '';
+    // Build action cells (one or more <td> elements)
+    let actionCells = '';
     if (updatedOrder.status === 'pending') {
-        actionButton = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${updatedOrder.id})">Start Preparing</button>`;
+        actionCells = `<td><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${updatedOrder.id})">Start Preparing</button></td>`;
     } else if (updatedOrder.status === 'ready') {
-        actionButton = new Date(updatedOrder.timestamp).toLocaleTimeString();
+        actionCells = `<td>${new Date(updatedOrder.timestamp).toLocaleTimeString()}</td>`;
+    } else if (updatedOrder.status === 'out_for_delivery') {
+        actionCells = `<td>${updatedOrder.collected_by || ''}</td><td>${updatedOrder.collected_at ? new Date(updatedOrder.collected_at).toLocaleString() : ''}</td>`;
+    } else if (updatedOrder.status === 'delivered') {
+        actionCells = `<td>${updatedOrder.collected_by || updatedOrder.delivered_by || ''}</td><td>${updatedOrder.delivered_at ? new Date(updatedOrder.delivered_at).toLocaleString() : ''}</td>`;
+    } else {
+        actionCells = `<td></td>`;
     }
 
     // Render and append new rows
-    const newMainRow = renderOrderRow(updatedOrder, allowExpand, updatedOrder.status, selectedIngredients, actionButton);
+    const newMainRow = renderOrderRow(updatedOrder, allowExpand, updatedOrder.status, selectedIngredients, actionCells);
     targetTbody.insertAdjacentHTML('beforeend', newMainRow);
 
     if (isExpanded && allowExpand) {
@@ -339,6 +352,7 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
     tbody.innerHTML = "";
     
     if (orders.length === 0) {
+        // use colspan=5 to cover the widest table (out-for-delivery/delivered)
         tbody.innerHTML = `<tr><td colspan="5" class="text-muted text-center">No orders</td></tr>`;
         return;
     }
@@ -359,16 +373,22 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
         
         const checkedIngredients = orderProgressCache[o.id] || [];
         
-        // Determine action button
-        let actionButton = '';
+        // Determine action cells (one or more <td>)
+        let actionCells = '';
         if (status === 'pending') {
-            actionButton = `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button>`;
+            actionCells = `<td><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button></td>`;
         } else if (status === 'ready') {
-            actionButton = new Date(o.timestamp).toLocaleTimeString();
+            actionCells = `<td>${new Date(o.timestamp).toLocaleTimeString()}</td>`;
+        } else if (status === 'out_for_delivery') {
+            actionCells = `<td>${o.collected_by || ''}</td><td>${o.collected_at ? new Date(o.collected_at).toLocaleString() : ''}</td>`;
+        } else if (status === 'delivered') {
+            actionCells = `<td>${o.collected_by || o.delivered_by || ''}</td><td>${o.delivered_at ? new Date(o.delivered_at).toLocaleString() : ''}</td>`;
+        } else {
+            actionCells = `<td></td>`;
         }
         
         // Render and append new rows
-        const newMainRow = renderOrderRow(o, allowExpand, status, selectedIngredients, actionButton);
+        const newMainRow = renderOrderRow(o, allowExpand, status, selectedIngredients, actionCells);
         tbody.insertAdjacentHTML('beforeend', newMainRow);
 
         if (isExpanded && allowExpand) {
@@ -394,3 +414,7 @@ loadIngredientLabels().then(() => {
     });
 });
 </script>
+
+</body>
+</html>
+

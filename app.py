@@ -337,13 +337,14 @@ def get_order_settings():
     users = db.get_users()
     user_settings = []
     for user in users:
-        if user['role'] != 'admin':
-            user_settings.append({
-                "id": user["id"],
-                "name": user["name"],
-                "gender": user.get("gender", ""),
-                "can_order": settings.get(f"user_{user['id']}", False)
-            })
+        # Include all users (admins included) so they appear in the individual controls
+        user_settings.append({
+            "id": user["id"],
+            "name": user["name"],
+            "gender": user.get("gender", ""),
+            "role": user.get("role", ""),                # added role for UI clarity
+            "can_order": settings.get(f"user_{user['id']}", False)
+        })
     return jsonify({
         "users": user_settings
     })
@@ -360,12 +361,13 @@ def update_order_settings():
         users = db.get_users()
 
         if category == "all":
+            # Apply to ALL users, including admins
             for user in users:
-                if user['role'] != 'admin':
-                    conn.execute("INSERT OR REPLACE INTO order_settings (setting, value) VALUES (?, ?)", (f"user_{user['id']}", enabled))
+                conn.execute("INSERT OR REPLACE INTO order_settings (setting, value) VALUES (?, ?)", (f"user_{user['id']}", enabled))
         else:
+            # Apply to all users matching the gender category (including admins)
             for user in users:
-                if user['role'] != 'admin' and user.get('gender') == category:
+                if user.get('gender') == category:
                     conn.execute("INSERT OR REPLACE INTO order_settings (setting, value) VALUES (?, ?)", (f"user_{user['id']}", enabled))
 
     if "user_id" in data:
