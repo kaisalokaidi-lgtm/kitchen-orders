@@ -66,7 +66,18 @@
                             <option value="salads">Salads</option>
                             <option value="sauces">Sauces</option>
                             <option value="drinks">Drinks</option>
+                            <option value="sides">Sides</option>
+                            <option value="options">Options</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Available To</label>
+                        <select class="form-select" id="availableTo">
+                            <option value="all">Everyone (Default)</option>
+                            <option value="adults">Adults Only (Male & Female)</option>
+                            <option value="kids">Kids Only</option>
+                        </select>
+                        <small class="text-muted">Restrict who can see and order this ingredient</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Emoji (optional)</label>
@@ -105,6 +116,16 @@
                 <div class="mt-4">
                     <h5>🥤 Drinks</h5>
                     <div id="drinks-list"></div>
+                </div>
+
+                <div class="mt-4">
+                    <h5>🍟 Sides</h5>
+                    <div id="sides-list"></div>
+                </div>
+
+                <div class="mt-4">
+                    <h5>⚙️ Options</h5>
+                    <div id="options-list"></div>
                 </div>
             </div>
         </div>
@@ -249,10 +270,14 @@ async function loadIngredients() {
     const salads = ingredients.filter(i => i.category === "salads");
     const sauces = ingredients.filter(i => i.category === "sauces");
     const drinks = ingredients.filter(i => i.category === "drinks");
+    const sides = ingredients.filter(i => i.category === "sides");
+    const options = ingredients.filter(i => i.category === "options");
     
     renderIngredients(salads, "salads-list");
     renderIngredients(sauces, "sauces-list");
     renderIngredients(drinks, "drinks-list");
+    renderIngredients(sides, "sides-list");
+    renderIngredients(options, "options-list");
 }
 
 function renderIngredients(ingredients, elementId) {
@@ -261,17 +286,22 @@ function renderIngredients(ingredients, elementId) {
         container.innerHTML = '<p class="text-muted">No ingredients</p>';
         return;
     }
-
-    container.innerHTML = ingredients.map(ing => `
+    
+    container.innerHTML = ingredients.map(ing => {
+        const availabilityBadge = ing.available_to === 'adults' ? '<span class="badge bg-warning text-dark ms-2">Adults Only</span>' : 
+                                  ing.available_to === 'kids' ? '<span class="badge bg-info ms-2">Kids Only</span>' : '';
+        
+        return `
         <div class="ingredient-item">
-            <span>${ing.emoji} ${ing.name}</span>
+            <span>${ing.emoji} ${ing.name}${availabilityBadge}</span>
             <div>
                 ${ing.description ? `<button class="btn btn-outline-info btn-sm me-2" onclick='showIngredientInfo(${JSON.stringify(ing.name)}, ${JSON.stringify(ing.description)})'>ℹ️</button>` : ''}
                 <button class="btn btn-primary btn-sm me-2" onclick='editIngredient(${JSON.stringify(ing)})'>Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteIngredient(${ing.id})">Delete</button>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function editIngredient(ingredient) {
@@ -282,6 +312,7 @@ function editIngredient(ingredient) {
     document.getElementById("emoji").value = ingredient.emoji || "";
     document.getElementById("description").value = ingredient.description || "";
     document.getElementById("imageUrl").value = ingredient.image_url || "";
+    document.getElementById("availableTo").value = ingredient.available_to || "all";
 
     // Update UI for edit mode
     document.getElementById("formTitle").textContent = "Edit Ingredient";
@@ -404,7 +435,8 @@ document.getElementById("ingredientForm").addEventListener("submit", async e => 
         category: document.getElementById("category").value,
         emoji: document.getElementById("emoji").value,
         image_url: document.getElementById("imageUrl").value,
-        description: document.getElementById("description").value
+        description: document.getElementById("description").value,
+        available_to: document.getElementById("availableTo").value
     };
 
     // Determine if we're adding or editing

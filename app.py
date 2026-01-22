@@ -321,9 +321,8 @@ def add_ingredient():
 def update_ingredient(ingredient_id):
     data = request.json
     conn = db.get_db_connection()
-    # Include description when updating
-    conn.execute("UPDATE ingredients SET name = ?, category = ?, emoji = ?, image_url = ?, description = ? WHERE id = ?",
-                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), data.get("description", ""), ingredient_id))
+    conn.execute("UPDATE ingredients SET name = ?, category = ?, emoji = ?, image_url = ?, description = ?, available_to = ? WHERE id = ?",
+                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), data.get("description", ""), data.get("available_to", "all"), ingredient_id))
     conn.commit()
     conn.close()
     notify_clients()

@@ -208,6 +208,8 @@
     <div id="salads-section"></div>
     <div id="sauces-section"></div>
     <div id="drinks-section"></div>
+    <div id="sides-section"></div>
+    <div id="options-section"></div>
 
     <!-- Additional Instructions -->
     <div class="mb-4">
@@ -306,11 +308,22 @@ document.addEventListener('keydown', function(event) {
 
 async function loadIngredients() {
     const res = await fetch("/api/ingredients");
-    ingredients = await res.json();
+    let allIngredients = await res.json();
+    
+    // Filter ingredients based on user's gender
+    const userGender = '{{ user.gender }}';
+    ingredients = allIngredients.filter(ing => {
+        if (!ing.available_to || ing.available_to === 'all') return true;
+        if (ing.available_to === 'adults' && (userGender === 'male' || userGender === 'female')) return true;
+        if (ing.available_to === 'kids' && userGender === 'kid') return true;
+        return false;
+    });
     
     renderCategory("salads", "🥗 Salads", "salads-section", "checkbox");
     renderCategory("sauces", "🍯 Sauces", "sauces-section", "checkbox");
     renderCategory("drinks", "🥤 Drinks", "drinks-section", "radio");
+    renderCategory("sides", "🍟 Sides", "sides-section", "checkbox");
+    renderCategory("options", "⚙️ Options", "options-section", "checkbox");
 }
 
 function renderCategory(category, title, sectionId, inputType) {
@@ -543,6 +556,8 @@ function showOrderForm() {
                 <div id="salads-section"></div>
                 <div id="sauces-section"></div>
                 <div id="drinks-section"></div>
+                <div id="sides-section"></div>
+                <div id="options-section"></div>
                 <button class="btn btn-primary w-100 w-sm-auto">Place Order</button>
             </form>
         </div>`;
