@@ -55,18 +55,41 @@
             margin-right: 8px;
             font-weight: bold;
         }
-        .ingredient-image {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-right: 12px;
+        /* replaced image styling with eye-button placed at end of row */
+        .ingredient-eye {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            margin-left: auto; /* push to end of the label row */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            transition: transform 0.2s;
+            color: inherit;
+            border-radius: 6px;
+            transition: background 0.15s, transform 0.12s;
         }
-        .ingredient-image:hover {
-            transform: scale(1.1);
+        .ingredient-info {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: inherit;
+            border-radius: 6px;
+            margin-left: 8px;
         }
+        .ingredient-eye:hover {
+            background: rgba(0,0,0,0.06);
+            transform: scale(1.05);
+        }
+        .ingredient-info:hover {
+            background: rgba(0,0,0,0.04);
+        }
+
+        /* keep gap on label */
         .form-check-label {
             gap: 12px;
         }
@@ -232,6 +255,12 @@
     <img id="modalImage" src="" alt="Ingredient">
 </div>
 
+<!-- Info Modal -->
+<div id="infoModal" class="image-modal" onclick="closeInfoModal(event)">
+    <span class="close-modal" onclick="closeInfoModal(event)">&times;</span>
+    <div id="infoContent" style="color:#fff;max-width:90%;padding:20px;"></div>
+</div>
+
 <script>
 let ingredients = [];
 
@@ -249,6 +278,22 @@ function openImageModal(event, imageUrl, imageName) {
 
 function closeImageModal(event) {
     const modal = document.getElementById('imageModal');
+    modal.classList.remove('show');
+}
+
+// Info modal functions
+function openInfoModalByKey(event, key) {
+    event.preventDefault();
+    event.stopPropagation();
+    const ing = ingredients.find(i => i.name.toLowerCase().replace(/ /g, '_') === key);
+    if (!ing || !ing.description) return;
+    const modal = document.getElementById('infoModal');
+    const content = document.getElementById('infoContent');
+    modal.classList.add('show');
+    content.innerHTML = `<h5 style="margin-bottom:8px;color:#fff">${ing.name}</h5><div style="color:#fff">${ing.description}</div>`;
+}
+function closeInfoModal(event) {
+    const modal = document.getElementById('infoModal');
     modal.classList.remove('show');
 }
 
@@ -281,17 +326,28 @@ function renderCategory(category, title, sectionId, inputType) {
         const nameAttr = inputName ? `name="${inputName}"` : '';
         const valueAttr = inputType === 'radio' ? `value="${key}"` : '';
 
-        // Build image HTML if image_url exists
+        // Build info-button HTML if description exists
+        const infoHtml = ing.description ?
+            `<button type="button" class="ingredient-info" onclick="openInfoModalByKey(event, '${key}')" aria-label="Info ${ing.name}">ℹ️</button>` :
+            '';
+
+        // Build eye-button HTML if image_url exists (eye placed at end of label)
         const imageHtml = ing.image_url ?
-            `<img src="${ing.image_url}" alt="${ing.name}" class="ingredient-image" onerror="this.style.display='none'" onclick="openImageModal(event, '${ing.image_url}', '${ing.name}')">` :
+            `<button type="button" class="ingredient-eye" onclick="openImageModal(event, '${ing.image_url}', '${ing.name}')" aria-label="View ${ing.name} image">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </button>` :
             '';
 
         html += `
         <div class="form-check">
             <input class="form-check-input" type="${inputType}" id="${key}" ${nameAttr} ${valueAttr}>
             <label class="form-check-label" for="${key}">
-                ${imageHtml}
                 <span>${ing.name} ${ing.emoji}</span>
+                ${infoHtml}
+                ${imageHtml}
             </label>
         </div>`;
     });

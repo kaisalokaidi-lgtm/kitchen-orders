@@ -35,12 +35,14 @@ def setup_database():
                                         is_delivery integer
                                     ); """
 
+        # Note: added description column to ingredients
         create_ingredients_table_sql = """CREATE TABLE IF NOT EXISTS ingredients (
                                     id integer PRIMARY KEY,
                                     name text NOT NULL,
                                     category text,
                                     emoji text,
-                                    image_url text
+                                    image_url text,
+                                    description text
                                 );"""
 
         create_orders_table_sql = """CREATE TABLE IF NOT EXISTS orders (
@@ -92,6 +94,15 @@ def setup_database():
         create_table(conn, create_order_progress_table_sql)
         create_table(conn, create_magic_links_table_sql)
 
+        # Ensure description column exists (migration for older DBs)
+        cols = conn.execute("PRAGMA table_info(ingredients)").fetchall()
+        col_names = [c[1] for c in cols]
+        if 'description' not in col_names:
+            try:
+                conn.execute("ALTER TABLE ingredients ADD COLUMN description text DEFAULT ''")
+            except Exception as e:
+                print("Failed to add description column:", e)
+
         # Check if database is empty
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM users")
@@ -106,26 +117,26 @@ def setup_database():
         cursor.execute("SELECT COUNT(*) FROM ingredients")
         ingredient_count = cursor.fetchone()[0]
         if ingredient_count == 0:
-            # Add default ingredients
+            # Add default ingredients (added empty description as last element)
             default_ingredients = [
-                (1, "Tomatoes", "salads", "🍅", ""),
-                (2, "Saute onions", "salads", "🧅", ""),
-                (3, "Gherkins", "salads", "🥒", ""),
-                (4, "Jalapeno", "salads", "🌶️", ""),
-                (5, "Cheese", "salads", "🧀", ""),
-                (6, "Lettuce", "salads", "🥬", ""),
-                (7, "Chefs special", "salads", "👨‍🍳", ""),
-                (8, "Peri peri lemon and herb", "sauces", "🍋🌿", ""),
-                (9, "Burger sauce", "sauces", "🥫", ""),
-                (10, "Ketchup", "sauces", "🍅", ""),
-                (11, "BBQ", "sauces", "🔥", ""),
-                (12, "Mayo", "sauces", "🧴", ""),
-                (13, "Peri peri medium", "sauces", "🌶️", ""),
-                (14, "Water", "drinks", "💧", ""),
-                (15, "Coke", "drinks", "🥤", ""),
-                (16, "Tropicana", "drinks", "🍊", ""),
+                (1, "Tomatoes", "salads", "🍅", "", ""),
+                (2, "Saute onions", "salads", "🧅", "", ""),
+                (3, "Gherkins", "salads", "🥒", "", ""),
+                (4, "Jalapeno", "salads", "🌶️", "", ""),
+                (5, "Cheese", "salads", "🧀", "", ""),
+                (6, "Lettuce", "salads", "🥬", "", ""),
+                (7, "Chefs special", "salads", "👨‍🍳", "", ""),
+                (8, "Peri peri lemon and herb", "sauces", "🍋🌿", "", ""),
+                (9, "Burger sauce", "sauces", "🥫", "", ""),
+                (10, "Ketchup", "sauces", "🍅", "", ""),
+                (11, "BBQ", "sauces", "🔥", "", ""),
+                (12, "Mayo", "sauces", "🧴", "", ""),
+                (13, "Peri peri medium", "sauces", "🌶️", "", ""),
+                (14, "Water", "drinks", "💧", "", ""),
+                (15, "Coke", "drinks", "🥤", "", ""),
+                (16, "Tropicana", "drinks", "🍊", "", ""),
             ]
-            conn.executemany("INSERT INTO ingredients (id, name, category, emoji, image_url) VALUES (?, ?, ?, ?, ?)", default_ingredients)
+            conn.executemany("INSERT INTO ingredients (id, name, category, emoji, image_url, description) VALUES (?, ?, ?, ?, ?, ?)", default_ingredients)
 
         conn.commit()
         conn.close()

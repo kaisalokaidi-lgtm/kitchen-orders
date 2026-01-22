@@ -62,16 +62,21 @@
             text-decoration: line-through;
             color: #6c757d;
         }
+        .badge-info-btn {
+            background: transparent;
+            border: none;
+            color: #0d6efd;
+            padding: 0 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .badge-info-btn:hover { text-decoration: underline; }
     </style>
 </head>
 <body class="container py-3 py-md-5">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>👨‍🍳 Kitchen Orders</h2>
-    <div>
-        <a href="/" class="btn btn-outline-secondary btn-sm">Order Page</a>
-        <a href="/admin" class="btn btn-outline-secondary btn-sm">Admin</a>
-        <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
-    </div>
+    <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
 </div>
 
 <!-- Pending Orders -->
@@ -147,8 +152,16 @@
         </div>
     </div>
 </div>
+
+<!-- Info Modal -->
+<div id="infoModal" class="image-modal" onclick="closeInfoModal(event)">
+    <span class="close-modal" onclick="closeInfoModal(event)">&times;</span>
+    <div id="infoModalContent" style="color:#fff;max-width:90%;padding:20px;"></div>
+</div>
+
 <script>
 const OPTION_LABELS = {};
+const OPTION_DESCRIPTIONS = {}; // new map
 
 async function loadIngredientLabels() {
     const res = await fetch("/api/ingredients");
@@ -157,8 +170,26 @@ async function loadIngredientLabels() {
     ingredients.forEach(ing => {
         const key = ing.name.toLowerCase().replace(/ /g, '_');
         OPTION_LABELS[key] = `${ing.name} ${ing.emoji}`;
+        OPTION_DESCRIPTIONS[key] = ing.description || '';
     });
     console.log("OPTION_LABELS:", OPTION_LABELS);
+    console.log("OPTION_DESCRIPTIONS:", OPTION_DESCRIPTIONS);
+}
+
+// Info modal helpers
+function openInfoModalByKey(event, key) {
+    event.preventDefault();
+    event.stopPropagation();
+    const desc = OPTION_DESCRIPTIONS[key];
+    if (!desc) return;
+    const modal = document.getElementById('infoModal');
+    const content = document.getElementById('infoModalContent');
+    content.innerHTML = `<h5 style="margin-bottom:8px;color:#fff">${OPTION_LABELS[key].split(' ')[0]}</h5><div style="color:#fff">${desc}</div>`;
+    modal.classList.add('show');
+}
+function closeInfoModal(event) {
+    const modal = document.getElementById('infoModal');
+    modal.classList.remove('show');
 }
 
 let expandedOrderId = null;
@@ -232,9 +263,10 @@ async function startOrder(orderId) {
 function renderOrderRow(o, allowExpand, status, selectedIngredients, actionCellsHtml) {
     const rowClass = allowExpand ? 'order-row' : '';
     const rowClick = allowExpand ? `onclick="toggleOrder('${o.id}')"` : '';
-    const badges = selectedIngredients.map(k =>
-        `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}</span>`
-    ).join("");
+    const badges = selectedIngredients.map(k => {
+        const infoBtn = OPTION_DESCRIPTIONS[k] ? `<button class="badge-info-btn" onclick="event.stopPropagation(); openInfoModalByKey(event, '${k}')">ℹ️</button>` : '';
+        return `<span class="badge bg-secondary me-1 mb-1">${OPTION_LABELS[k]}${infoBtn}</span>`;
+    }).join("");
 
     return `
     <tr class="${rowClass}" ${rowClick} id="order-main-row-${o.id}">

@@ -303,8 +303,9 @@ def add_ingredient():
     data = request.json
     conn = db.get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO ingredients (name, category, emoji, image_url) VALUES (?, ?, ?, ?)",
-                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", "")))
+    # Include description when inserting
+    cursor.execute("INSERT INTO ingredients (name, category, emoji, image_url, description) VALUES (?, ?, ?, ?, ?)",
+                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), data.get("description", "")))
     new_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -320,8 +321,9 @@ def add_ingredient():
 def update_ingredient(ingredient_id):
     data = request.json
     conn = db.get_db_connection()
-    conn.execute("UPDATE ingredients SET name = ?, category = ?, emoji = ?, image_url = ? WHERE id = ?",
-                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), ingredient_id))
+    # Include description when updating
+    conn.execute("UPDATE ingredients SET name = ?, category = ?, emoji = ?, image_url = ?, description = ? WHERE id = ?",
+                   (data["name"], data["category"], data.get("emoji", ""), data.get("image_url", ""), data.get("description", ""), ingredient_id))
     conn.commit()
     conn.close()
     notify_clients()

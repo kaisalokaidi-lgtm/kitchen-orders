@@ -73,6 +73,10 @@
                         <input class="form-control" id="emoji" placeholder="e.g., 🍅">
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Description (optional)</label>
+                        <textarea class="form-control" id="description" rows="2" placeholder="Add a short description that will be shown as info"></textarea>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Image URL (optional)</label>
                         <input type="url" class="form-control" id="imageUrl" placeholder="https://example.com/image.jpg">
                         <small class="text-muted">Enter a URL to an image for this ingredient</small>
@@ -262,6 +266,7 @@ function renderIngredients(ingredients, elementId) {
         <div class="ingredient-item">
             <span>${ing.emoji} ${ing.name}</span>
             <div>
+                ${ing.description ? `<button class="btn btn-outline-info btn-sm me-2" onclick='showIngredientInfo(${JSON.stringify(ing.name)}, ${JSON.stringify(ing.description)})'>ℹ️</button>` : ''}
                 <button class="btn btn-primary btn-sm me-2" onclick='editIngredient(${JSON.stringify(ing)})'>Edit</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteIngredient(${ing.id})">Delete</button>
             </div>
@@ -275,6 +280,7 @@ function editIngredient(ingredient) {
     document.getElementById("ingredientName").value = ingredient.name;
     document.getElementById("category").value = ingredient.category;
     document.getElementById("emoji").value = ingredient.emoji || "";
+    document.getElementById("description").value = ingredient.description || "";
     document.getElementById("imageUrl").value = ingredient.image_url || "";
 
     // Update UI for edit mode
@@ -397,7 +403,8 @@ document.getElementById("ingredientForm").addEventListener("submit", async e => 
         name: document.getElementById("ingredientName").value,
         category: document.getElementById("category").value,
         emoji: document.getElementById("emoji").value,
-        image_url: document.getElementById("imageUrl").value
+        image_url: document.getElementById("imageUrl").value,
+        description: document.getElementById("description").value
     };
 
     // Determine if we're adding or editing
@@ -520,6 +527,24 @@ async function clearAllOrders() {
         alert('❌ Error clearing orders: ' + error.message);
         console.error(error);
     }
+}
+
+// Show info modal for ingredient description (admin)
+function showIngredientInfo(name, description) {
+    const modalHtml = `
+        <div class="modal fade" id="ingredientInfoModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">${name}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">${description}</div>
+        </div></div></div>`;
+    // Inject and show (clean up after)
+    const temp = document.createElement('div');
+    temp.innerHTML = modalHtml;
+    document.body.appendChild(temp.firstChild);
+    const bsModal = new bootstrap.Modal(document.getElementById('ingredientInfoModal'));
+    bsModal.show();
+    document.getElementById('ingredientInfoModal').addEventListener('hidden.bs.modal', () => {
+        document.getElementById('ingredientInfoModal').remove();
+    });
 }
 
 loadIngredients();
