@@ -117,10 +117,6 @@
                         <input class="form-control" id="userName" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Username</label>
-                        <input class="form-control" id="userUsername" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Gender/Category</label>
                         <select class="form-select" id="userGender" required>
                             <option value="male">Male</option>
@@ -426,9 +422,10 @@ document.getElementById("ingredientForm").addEventListener("submit", async e => 
 
 document.getElementById("userForm").addEventListener("submit", async e => {
     e.preventDefault();
+    const name = document.getElementById("userName").value;
     const payload = {
-        name: document.getElementById("userName").value,
-        username: document.getElementById("userUsername").value,
+        name: name,
+        username: name.toLowerCase().replace(/\s+/g, ''),
         gender: document.getElementById("userGender").value,
         role: document.getElementById("userRole").value,
         is_delivery: document.getElementById("isDelivery").checked ? "True" : "False"
