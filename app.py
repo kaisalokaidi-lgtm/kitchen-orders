@@ -1,17 +1,67 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_file
 from flask_socketio import SocketIO, emit
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
+from itsdangerous import URLSafeTimedSerializer
 import sqlite3
+import qrcode
+from io import BytesIO
+import os
 
 import database as db
 
 app = Flask(__name__)
 app.secret_key = "burger-order-secret-key-change-this-in-production"
+s = URLSafeTimedSerializer(app.secret_key)
 socketio = SocketIO(app)
+
+# Load BASE_URL from config.properties
+def load_config():
+    config = {}
+    config_file = os.path.join(os.path.dirname(__file__), 'config.properties')
+    if os.path.exists(config_file):
+        with open(config_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    config[key.strip()] = value.strip()
+    return config
+
+config = load_config()
+BASE_URL = config.get('BASE_URL', 'http://localhost:5001')
 
 # Setup the database
 db.setup_database()
+
+def setup_admin_user():
+    with app.app_context():
+        admin = db.get_user_by_username('admin')
+        if not admin:
+            conn = db.get_db_connection()
+            conn.execute("INSERT INTO users (id, username, role, name, gender, is_delivery) VALUES (?, ?, ?, ?, ?, ?)",
+                         (1, "admin", "admin", "Administrator", "admin", 0))
+            conn.commit()
+            conn.close()
+            admin = db.get_user_by_username('admin')
+
+        token = s.dumps("admin", salt='magic-link')
+        
+        conn = db.get_db_connection()
+        # Delete existing tokens for admin user to avoid duplicates
+        conn.execute("DELETE FROM magic_links WHERE user_id = ?", (admin['id'],))
+        conn.execute("INSERT INTO magic_links (user_id, token, expires_at) VALUES (?, ?, ?)",
+                     (admin['id'], token, (datetime.now() + timedelta(days=365)).isoformat()))
+        conn.commit()
+        conn.close()
+        
+        print("====================================================")
+        print("INITIAL ADMIN LOGIN")
+        print("Use the following link to log in as the admin user:")
+        print(f"{BASE_URL}/magic-login/{token}")
+        print("====================================================")
+
+setup_admin_user()
 
 # Login decorators
 def login_required(f):
@@ -287,19 +337,7 @@ def delete_ingredient(ingredient_id):
     notify_clients()
     return {"success": True}
 
-@app.route("/api/login", methods=["POST"])
-def api_login():
-    data = request.json
-    user = db.get_user_by_username_and_password(data['username'], data['password'])
-    
-    if user:
-        session['user_id'] = user['id']
-        session['username'] = user['username']
-        session['role'] = user['role']
-        session['name'] = user['name']
-        return {"success": True, "role": user['role'], "name": user['name']}
-    else:
-        return {"success": False, "message": "Invalid credentials"}, 401
+
 
 @app.route("/api/users", methods=["GET"])
 @admin_required
@@ -314,7 +352,7 @@ def add_user():
     is_delivery = 1 if data.get("is_delivery") == 'True' else 0
     conn = db.get_db_connection()
     conn.execute("INSERT INTO users (username, password, role, name, gender, is_delivery) VALUES (?, ?, ?, ?, ?, ?)",
-                   (data["username"], data["password"], data.get("role", "user"), data["name"], data.get("gender", "male"), is_delivery))
+                   (data["username"], "", data.get("role", "user"), data["name"], data.get("gender", "male"), is_delivery))
     conn.commit()
     conn.close()
     notify_clients()
@@ -329,6 +367,117 @@ def delete_user(user_id):
     conn.close()
     notify_clients()
     return {"success": True}
+
+
+@app.route("/api/user/<int:user_id>/generate-qr")
+@admin_required
+def generate_qr(user_id):
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return "User not found", 404
+
+    # Generate a magic link
+    token = s.dumps(user['username'], salt='magic-link')
+    magic_link = f"{BASE_URL}/magic-login/{token}"
+
+    # Delete existing tokens for this user and store the new token (60 minutes expiration)
+    conn = db.get_db_connection()
+    conn.execute("DELETE FROM magic_links WHERE user_id = ?", (user_id,))
+    conn.execute("INSERT INTO magic_links (user_id, token, expires_at) VALUES (?, ?, ?)",
+                 (user_id, token, (datetime.now() + timedelta(minutes=60)).isoformat()))
+    conn.commit()
+    conn.close()
+
+    # Generate QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(magic_link)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save QR code to a bytes buffer
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+
+    return send_file(buf, mimetype='image/png')
+
+
+@app.route("/api/user/<int:user_id>/magic-link")
+@admin_required
+def get_magic_link(user_id):
+    user = db.get_user_by_id(user_id)
+    if not user:
+        return {"error": "User not found"}, 404
+
+    # Generate a magic link
+    token = s.dumps(user['username'], salt='magic-link')
+    magic_link = f"{BASE_URL}/magic-login/{token}"
+
+    # Delete existing tokens for this user and store the new token (60 minutes expiration)
+    conn = db.get_db_connection()
+    conn.execute("DELETE FROM magic_links WHERE user_id = ?", (user_id,))
+    conn.execute("INSERT INTO magic_links (user_id, token, expires_at) VALUES (?, ?, ?)",
+                 (user_id, token, (datetime.now() + timedelta(minutes=60)).isoformat()))
+    conn.commit()
+    conn.close()
+
+    return {"magic_link": magic_link, "user_name": user['name']}
+
+    # Generate QR code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(magic_link)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Save QR code to a bytes buffer
+    buf = BytesIO()
+    img.save(buf)
+    buf.seek(0)
+
+    return send_file(buf, mimetype='image/png')
+
+
+@app.route('/magic-login/<token>')
+def magic_login(token):
+    try:
+        username = s.loads(token, salt='magic-link', max_age=3600)  # 60 minutes
+    except:
+        return 'The magic link is expired or invalid.', 403
+
+    conn = db.get_db_connection()
+    magic_link_record = conn.execute('SELECT * FROM magic_links WHERE token = ?', (token,)).fetchone()
+    
+    if not magic_link_record:
+        conn.close()
+        return 'Invalid magic link.', 403
+
+    # Delete the token after validating it (one-time use)
+    conn.execute('DELETE FROM magic_links WHERE token = ?', (token,))
+    conn.commit()
+    conn.close()
+
+    user = db.get_user_by_username(username)
+
+    if user:
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['role'] = user['role']
+        session['name'] = user['name']
+        return redirect(url_for('order_page'))
+    else:
+        return 'User not found.', 404
 
 @app.route("/api/order-settings", methods=["GET"])
 @admin_required
@@ -379,6 +528,28 @@ def update_order_settings():
     notify_clients()
     return {"success": True}
 
+@app.route("/api/orders/clear-all", methods=["POST"])
+@admin_required
+def clear_all_orders():
+    try:
+        conn = db.get_db_connection()
+        
+        # Delete all order-related data
+        conn.execute("DELETE FROM order_progress")
+        conn.execute("DELETE FROM order_ingredients")
+        conn.execute("DELETE FROM orders")
+        
+        # Reset the auto-increment counter for orders table
+        conn.execute("DELETE FROM sqlite_sequence WHERE name='orders'")
+        
+        conn.commit()
+        conn.close()
+        
+        notify_clients()
+        return {"success": True, "message": "All orders cleared successfully"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}, 500
+
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
@@ -388,4 +559,4 @@ def handle_disconnect():
     print('Client disconnected')
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5001, debug=True, allow_unsafe_werkzeug=True)

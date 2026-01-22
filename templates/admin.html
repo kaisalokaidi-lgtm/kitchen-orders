@@ -28,7 +28,11 @@
 <body class="container py-3 py-md-5">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>⚙️ Admin - Manage Ingredients & Users</h2>
-    <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
+    <div>
+        <a href="/" class="btn btn-outline-secondary btn-sm">Order Page</a>
+        <a href="/kitchen" class="btn btn-outline-secondary btn-sm">Kitchen</a>
+        <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
+    </div>
 </div>
 
 <ul class="nav nav-tabs mb-4" role="tablist">
@@ -117,10 +121,6 @@
                         <input class="form-control" id="userUsername" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input type="password" class="form-control" id="userPassword" required>
-                    </div>
-                    <div class="mb-3">
                         <label class="form-label">Gender/Category</label>
                         <select class="form-select" id="userGender" required>
                             <option value="male">Male</option>
@@ -198,6 +198,16 @@
                         Disable Kids 👶
                     </button>
                 </div>
+
+                <hr class="my-4">
+
+                <div class="mb-3">
+                    <h5 class="text-danger">⚠️ Danger Zone</h5>
+                    <p class="text-muted small">Clear all orders from the database. This cannot be undone!</p>
+                    <button class="btn btn-danger w-100" onclick="clearAllOrders()">
+                        🗑️ Clear All Orders & Reset
+                    </button>
+                </div>
             </div>
             
             <div class="col-md-6">
@@ -208,6 +218,22 @@
         </div>
     </div>
 </div>
+
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="qrCodeModalLabel">Scan to Login</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="qrCodeImage" src="" alt="QR Code" class="img-fluid">
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <div class="mt-4">
     <a href="/" class="btn btn-outline-secondary">← Order Page</a>
@@ -308,11 +334,56 @@ async function loadUsers() {
                 <br>
                 <small class="text-muted">Username: ${user.username}</small>
             </div>
-            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})" ${user.id === '1' ? 'disabled' : ''}>
-                ${user.id === '1' ? 'Protected' : 'Delete'}
-            </button>
+            <div>
+                <button class="btn btn-info btn-sm" onclick="showQrCode(${user.id}, '${user.name}')">Generate QR</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyMagicLink(event, ${user.id}, '${user.name}')">Copy Link</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})" ${user.id === '1' ? 'disabled' : ''}>
+                    ${user.id === '1' ? 'Protected' : 'Delete'}
+                </button>
+            </div>
         </div>
     `).join('');
+}
+
+function showQrCode(userId, userName) {
+    const qrCodeImage = document.getElementById('qrCodeImage');
+    const qrCodeModalLabel = document.getElementById('qrCodeModalLabel');
+    
+    // Update modal title with user name
+    qrCodeModalLabel.textContent = `Scan to Login - ${userName}`;
+    
+    // Add timestamp to force refresh the QR code
+    qrCodeImage.src = `/api/user/${userId}/generate-qr?t=${Date.now()}`;
+    
+    const qrCodeModal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+    qrCodeModal.show();
+}
+
+async function copyMagicLink(event, userId, userName) {
+    try {
+        const response = await fetch(`/api/user/${userId}/magic-link`);
+        const data = await response.json();
+        
+        if (data.magic_link) {
+            await navigator.clipboard.writeText(data.magic_link);
+            
+            // Show feedback
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '✓ Copied!';
+            button.classList.remove('btn-secondary');
+            button.classList.add('btn-success');
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-secondary');
+            }, 2000);
+        }
+    } catch (error) {
+        alert('Failed to copy magic link');
+        console.error(error);
+    }
 }
 
 async function deleteUser(id) {
@@ -358,7 +429,6 @@ document.getElementById("userForm").addEventListener("submit", async e => {
     const payload = {
         name: document.getElementById("userName").value,
         username: document.getElementById("userUsername").value,
-        password: document.getElementById("userPassword").value,
         gender: document.getElementById("userGender").value,
         role: document.getElementById("userRole").value,
         is_delivery: document.getElementById("isDelivery").checked ? "True" : "False"
@@ -422,6 +492,37 @@ async function updateUserSetting(userId, enabled) {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({user_id: userId, enabled: enabled})
     });
+}
+
+async function clearAllOrders() {
+    if (!confirm('⚠️ WARNING: This will delete ALL orders (past and present) and reset the order counter to 1.\n\nUsers and ingredients will NOT be affected.\n\nThis action CANNOT be undone. Are you sure?')) {
+        return;
+    }
+    
+    // Double confirmation
+    if (!confirm('Are you ABSOLUTELY sure? This is your last chance to cancel.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch("/api/orders/clear-all", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ All orders have been cleared successfully! Order counter has been reset to 1.');
+            // Reload order settings to reflect changes
+            await loadOrderSettings();
+        } else {
+            alert('❌ Failed to clear orders: ' + (data.message || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('❌ Error clearing orders: ' + error.message);
+        console.error(error);
+    }
 }
 
 loadIngredients();

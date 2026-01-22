@@ -3,8 +3,10 @@ import sqlite3
 DB_FILE = "kitchen.db"
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=10.0)
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode for better concurrency
+    conn.execute('PRAGMA journal_mode=WAL')
     return conn
 
 def create_table(conn, create_table_sql):
@@ -27,7 +29,6 @@ def setup_database():
         create_users_table_sql = """ CREATE TABLE IF NOT EXISTS users (
                                         id integer PRIMARY KEY,
                                         username text NOT NULL UNIQUE,
-                                        password text NOT NULL,
                                         role text,
                                         name text,
                                         gender text,
@@ -75,12 +76,21 @@ def setup_database():
                                             PRIMARY KEY (order_id, ingredient)
                                         );"""
 
+        create_magic_links_table_sql = """CREATE TABLE IF NOT EXISTS magic_links (
+                                            id integer PRIMARY KEY,
+                                            user_id integer,
+                                            token text NOT NULL UNIQUE,
+                                            expires_at timestamp,
+                                            FOREIGN KEY (user_id) REFERENCES users (id)
+                                        );"""
+
         create_table(conn, create_users_table_sql)
         create_table(conn, create_ingredients_table_sql)
         create_table(conn, create_orders_table_sql)
         create_table(conn, create_order_ingredients_table_sql)
         create_table(conn, create_order_settings_table_sql)
         create_table(conn, create_order_progress_table_sql)
+        create_table(conn, create_magic_links_table_sql)
 
         # Check if database is empty
         cursor = conn.cursor()
@@ -89,8 +99,9 @@ def setup_database():
 
         if user_count == 0:
             # Add default admin
-            conn.execute("INSERT INTO users (id, username, password, role, name, gender, is_delivery) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                         (1, "admin", "admin123", "admin", "Administrator", "admin", 0))
+            conn.execute("INSERT INTO users (id, username, role, name, gender, is_delivery) VALUES (?, ?, ?, ?, ?, ?)",
+                         (1, "admin", "admin", "Administrator", "admin", 0))
+
 
         cursor.execute("SELECT COUNT(*) FROM ingredients")
         ingredient_count = cursor.fetchone()[0]
@@ -137,11 +148,15 @@ def get_user_by_id(user_id):
     conn.close()
     return dict(user) if user else None
 
-def get_user_by_username_and_password(username, password):
+
+
+
+def get_user_by_username(username):
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     conn.close()
     return dict(user) if user else None
+
 
 def get_orders():
     conn = get_db_connection()

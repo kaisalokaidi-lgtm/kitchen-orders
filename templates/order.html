@@ -111,6 +111,10 @@
     <h2>🍔 Burger Order</h2>
     <div>
         <span class="me-3">Welcome, <strong>{{ user.name }}</strong></span>
+        {% if user.role == 'admin' %}
+        <a href="/admin" class="btn btn-outline-secondary btn-sm">Admin</a>
+        <a href="/kitchen" class="btn btn-outline-secondary btn-sm">Kitchen</a>
+        {% endif %}
         <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
     </div>
 </div>
@@ -134,8 +138,16 @@
 {% if current_order %}
 <!-- Show current order status -->
 <div class="alert {% if current_order.status == 'ready' %}alert-success{% else %}alert-info{% endif %}" id="orderStatus">
-    <h4>📦 Your Order Status</h4>
-    <p class="mb-2"><strong>Order #<span id="orderId">{{ current_order.id }}</span></strong></p>
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h4>📦 Your Order Status</h4>
+        </div>
+        <div class="text-end">
+            <div style="font-size: 2.5rem; font-weight: bold; line-height: 1; color: #0d6efd;">#{{ current_order.order_count }}</div>
+            <small class="text-muted">Order Number</small>
+        </div>
+    </div>
+    <p class="mb-2"><strong>Order ID: <span id="orderId">{{ current_order.id }}</span></strong></p>
     <p class="mb-0" id="statusText">
         Status:
         {% if current_order.status == 'pending' %}
@@ -610,15 +622,20 @@ function renderReadyOrders(orders) {
     orders.forEach(order => {
         const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
         const isForDeliveryPerson = order.name === currentUserName;
-        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'} - Order #${order.order_count || '1'}`;
+        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'}`;
         
         html += `
-        <div class="list-group-item ${isForDeliveryPerson ? 'border-danger border-2' : ''}">
+        <div class="list-group-item ${isForDeliveryPerson ? 'border-danger border-3' : ''}">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">Order #${order.id} - ${personLabel}</h6>
-                    <small class="text-muted">${ingredients || 'No items'}</small>
-                    ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#dc3545' : '#0d6efd'}; min-width: 60px;">#${order.order_count || '1'}</div>
+                        <div>
+                            <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">${personLabel}</h6>
+                            <small class="text-muted">${ingredients || 'No items'}</small>
+                            ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
+                        </div>
+                    </div>
                 </div>
                 <button class="btn btn-sm btn-primary" onclick="collectOrder(${order.id})">Collect</button>
             </div>
@@ -640,16 +657,21 @@ function renderMyDeliveries(orders) {
     orders.forEach(order => {
         const ingredients = Object.keys(order).filter(k => order[k] === 'True' && k !== 'id' && k !== 'name' && k !== 'status' && k !== 'timestamp').map(k => k.replace(/_/g, ' ')).join(', ');
         const isForDeliveryPerson = order.name === currentUserName;
-        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'} - Order #${order.order_count || '1'}`;
+        const personLabel = isForDeliveryPerson ? '🎯 THIS IS FOR YOU' : `${order.person_type || 'Unknown'}`;
         
         html += `
-        <div class="list-group-item ${isForDeliveryPerson ? 'border-danger border-2' : ''}">
+        <div class="list-group-item ${isForDeliveryPerson ? 'border-success border-3' : ''}">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">Order #${order.id} - ${personLabel}</h6>
-                    <small class="text-muted">${ingredients || 'No items'}</small>
-                    ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
-                    <br><small class="text-muted">Collected at: ${new Date(order.collected_at).toLocaleString()}</small>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-3">
+                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#198754' : '#0d6efd'}; min-width: 60px;">#${order.order_count || '1'}</div>
+                        <div>
+                            <h6 class="mb-1 ${isForDeliveryPerson ? 'text-success fw-bold' : ''}">${personLabel}</h6>
+                            <small class="text-muted">${ingredients || 'No items'}</small>
+                            ${order.additional_instructions ? `<br><small class="text-info">📝 ${order.additional_instructions}</small>` : ''}
+                            <br><small class="text-muted">Collected at: ${new Date(order.collected_at).toLocaleString()}</small>
+                        </div>
+                    </div>
                 </div>
                 <button class="btn btn-sm btn-success" onclick="deliverOrder(${order.id})">Mark Delivered</button>
             </div>
