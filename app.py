@@ -30,6 +30,10 @@ def load_config():
 
 config = load_config()
 BASE_URL = config.get('BASE_URL', 'http://localhost:5001')
+DB_PATH = config.get('DB_PATH', 'kitchen.db') # Get DB_PATH from config
+
+# Set the database file in the database module
+db.set_db_file(DB_PATH)
 
 # Setup the database
 db.setup_database()
@@ -211,6 +215,18 @@ def start_order(order_id):
     conn.close()
     notify_clients(order_id) # Emit specific order update
     return {"success": True}
+
+
+@app.route("/api/orders/<int:order_id>/cancel", methods=["POST"])
+@admin_required
+def cancel_order(order_id):
+    conn = db.get_db_connection()
+    conn.execute('UPDATE orders SET status = "cancelled" WHERE id = ?', (order_id,))
+    conn.commit()
+    conn.close()
+    notify_clients(order_id)
+    return {"success": True}
+
 
 @app.route("/api/delivery/ready-orders", methods=["GET"])
 @login_required
@@ -550,6 +566,27 @@ def clear_all_orders():
         return {"success": True, "message": "All orders cleared successfully"}
     except Exception as e:
         return {"success": False, "message": str(e)}, 500
+
+
+@app.route("/api/orders/clear-cancelled", methods=["POST"])
+@login_required
+def clear_cancelled_order():
+    user = db.get_user_by_id(session['user_id'])
+    if not user:
+        return {"success": False, "message": "User not found"}, 404
+
+    conn = db.get_db_connection()
+    # Find the user's cancelled order
+    order = conn.execute('SELECT * FROM orders WHERE name = ? AND status = "cancelled"', (user['name'],)).fetchone()
+    if order:
+        conn.execute("DELETE FROM order_progress WHERE order_id = ?", (order['id'],))
+        conn.execute("DELETE FROM order_ingredients WHERE order_id = ?", (order['id'],))
+        conn.execute("DELETE FROM orders WHERE id = ?", (order['id'],))
+        conn.commit()
+    conn.close()
+    notify_clients()
+    return {"success": True}
+
 
 @socketio.on('connect')
 def handle_connect():

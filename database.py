@@ -1,6 +1,11 @@
 import sqlite3
+import os
 
-DB_FILE = "kitchen.db"
+DB_FILE = "kitchen.db" # Default DB file
+
+def set_db_file(path):
+    global DB_FILE
+    DB_FILE = path
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE, timeout=10.0)
@@ -258,5 +263,13 @@ def get_user_order_history(user_id):
         return []
     conn = get_db_connection()
     orders = conn.execute('SELECT * FROM orders WHERE name = ? AND status = "delivered"', (user['name'],)).fetchall()
+    
+    orders_list = []
+    for o in orders:
+        order_dict = dict(o)
+        ingredients = get_order_ingredients(o['id'])
+        for ingredient in ingredients:
+            order_dict[ingredient['name'].lower().replace(' ', '_')] = "True"
+        orders_list.append(order_dict)
     conn.close()
-    return [dict(row) for row in orders]
+    return orders_list

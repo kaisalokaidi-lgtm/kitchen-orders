@@ -107,79 +107,85 @@
 <body class="container py-3 py-md-5">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>👨‍🍳 Kitchen Orders</h2>
-    <div>
+    <div class="d-none d-md-block">
         <a href="/" class="btn btn-outline-secondary btn-sm">Order Page</a>
         <a href="/admin" class="btn btn-outline-secondary btn-sm">Admin</a>
         <a href="/logout" class="btn btn-outline-secondary btn-sm">Logout</a>
     </div>
 </div>
 
-<!-- Pending Orders -->
-<div class="mb-5">
-    <h4 class="mt-4 mb-3">⏳ Pending Orders</h4>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <!-- Removed Order Count column -->
-                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
-            </thead>
-            <tbody id="pending-orders"></tbody>
-        </table>
-    </div>
-</div>
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="pending-tab" data-bs-toggle="tab" href="#pending-section">⏳ Pending</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="preparing-tab" data-bs-toggle="tab" href="#preparing-section">🔥 Preparing</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="ready-tab" data-bs-toggle="tab" href="#ready-section">✅ Ready</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="out-for-delivery-tab" data-bs-toggle="tab" href="#out-for-delivery-section">🚚 Out for Delivery</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="delivered-tab" data-bs-toggle="tab" href="#delivered-section">📜 Delivered</a>
+    </li>
+</ul>
 
-<!-- Preparing Orders -->
-<div class="mb-5">
-    <h4 class="mb-3">🔥 Preparing</h4>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <!-- Removed Order Count column -->
-                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
-            </thead>
-            <tbody id="preparing-orders"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Ready Orders -->
-<div class="mb-5">
-    <h4 class="mb-3">✅ Ready for Delivery Pickup</h4>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <!-- Removed Order Count column -->
-                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Time</th></tr>
-            </thead>
-            <tbody id="ready-orders"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Out for Delivery Orders -->
-<div class="mb-5">
-    <h4 class="mb-3">🚚 Out for Delivery</h4>
-    <div class="table-responsive">
-        <table class="table">
-            <thead>
-                <!-- Removed Order Count column; keep collected columns -->
-                <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
-            </thead>
-            <tbody id="out-for-delivery-orders"></tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Delivered Orders -->
-<div class="mb-5">
-    <button class="btn btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#deliveredSection" aria-expanded="true" aria-controls="deliveredSection">
-        📜 Toggle Delivered Orders
-    </button>
-    <div class="collapse show" id="deliveredSection">
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="pending-section" role="tabpanel">
+        <h4 class="mt-4 mb-3">⏳ Pending Orders</h4>
         <div class="table-responsive">
             <table class="table">
                 <thead>
-                    <!-- Removed Order Count column; keep delivered columns -->
+                    <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
+                </thead>
+                <tbody id="pending-orders"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="preparing-section" role="tabpanel">
+        <h4 class="mb-3">🔥 Preparing</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr><th>Order #</th><th>Person Type</th><th>Options</th><th></th></tr>
+                </thead>
+                <tbody id="preparing-orders"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="ready-section" role="tabpanel">
+        <h4 class="mb-3">✅ Ready for Delivery Pickup</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Time</th></tr>
+                </thead>
+                <tbody id="ready-orders"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="out-for-delivery-section" role="tabpanel">
+        <h4 class="mb-3">🚚 Out for Delivery</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Collected By</th><th>Collected At</th></tr>
+                </thead>
+                <tbody id="out-for-delivery-orders"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="delivered-section" role="tabpanel">
+        <h4 class="mb-3">📜 Delivered Orders</h4>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
                     <tr><th>Order #</th><th>Person Type</th><th>Options</th><th>Delivered By</th><th>Delivered At</th></tr>
                 </thead>
                 <tbody id="delivered-orders"></tbody>
@@ -201,14 +207,11 @@ const OPTION_DESCRIPTIONS = {}; // new map
 async function loadIngredientLabels() {
     const res = await fetch("/api/ingredients");
     const ingredients = await res.json();
-    console.log("Loaded ingredients:", ingredients);
     ingredients.forEach(ing => {
         const key = ing.name.toLowerCase().replace(/ /g, '_');
         OPTION_LABELS[key] = `${ing.name} ${ing.emoji}`;
         OPTION_DESCRIPTIONS[key] = ing.description || '';
     });
-    console.log("OPTION_LABELS:", OPTION_LABELS);
-    console.log("OPTION_DESCRIPTIONS:", OPTION_DESCRIPTIONS);
 }
 
 // Info modal helpers
@@ -233,8 +236,6 @@ let orderProgressCache = {};
 async function loadOrders() {
     const res = await fetch("/api/orders");
     const orders = await res.json();
-    console.log("Loaded orders:", orders);
-    console.log("OPTION_LABELS at loadOrders:", OPTION_LABELS);
 
     const pendingOrders = orders.filter(o => o.status === "pending");
     const preparingOrders = orders.filter(o => o.status === "preparing");
@@ -242,7 +243,7 @@ async function loadOrders() {
     const outForDeliveryOrders = orders.filter(o => o.status === "out_for_delivery");
     const deliveredOrders = orders.filter(o => o.status === "delivered");
 
-    renderOrders(pendingOrders, "pending-orders", false, "pending");
+    renderOrders(pendingOrders, "pending-orders", true, "pending");
     renderOrders(preparingOrders, "preparing-orders", true, "preparing");
     renderOrders(readyOrders, "ready-orders", false, "ready");
     renderOrders(outForDeliveryOrders, "out-for-delivery-orders", false, "out_for_delivery");
@@ -293,6 +294,13 @@ async function startOrder(orderId) {
     await updateOrderDisplay(orderId); // Targeted update for the single order
 }
 
+async function cancelOrder(orderId) {
+    if (confirm(`Are you sure you want to cancel Order #${orderId}?`)) {
+        await fetch(`/api/orders/${orderId}/cancel`, { method: "POST" });
+        await loadOrders(); // Reload to reflect the change
+    }
+}
+
 // Function to render a single order row (main row)
 // actionCellsHtml should contain one or more <td>...</td> cells as needed
 function renderOrderRow(o, allowExpand, status, selectedIngredients, actionCellsHtml) {
@@ -339,77 +347,9 @@ function renderExpandedOrderDetails(o, selectedIngredients, checkedIngredients) 
 
 // New function for targeted update of a single order
 async function updateOrderDisplay(orderId) {
-    const res = await fetch(`/api/orders`);
-    const allOrders = await res.json();
-    const updatedOrder = allOrders.find(o => o.id === orderId);
-
-    if (!updatedOrder) {
-        // Order might have been delivered or deleted, remove from DOM
-        document.getElementById(`order-main-row-${orderId}`)?.remove();
-        document.getElementById(`order-details-row-${orderId}`)?.remove();
-        return;
-    }
-
-    // Determine target tbody based on updated status
-    let targetTbodyId;
-    let allowExpand = false;
-    if (updatedOrder.status === "pending") {
-        targetTbodyId = "pending-orders";
-    } else if (updatedOrder.status === "preparing") {
-        targetTbodyId = "preparing-orders";
-        allowExpand = true;
-    } else if (updatedOrder.status === "ready") {
-        targetTbodyId = "ready-orders";
-    } else if (updatedOrder.status === "out_for_delivery") {
-        targetTbodyId = "out-for-delivery-orders";
-    } else if (updatedOrder.status === "delivered") {
-        targetTbodyId = "delivered-orders";
-    }
-
-    const targetTbody = document.getElementById(targetTbodyId);
-    if (!targetTbody) return;
-
-    // Remove existing rows for this order
-    document.getElementById(`order-main-row-${orderId}`)?.remove();
-    document.getElementById(`order-details-row-${orderId}`)?.remove();
-
-    // Prepare data for rendering
-    const selectedIngredients = Object.keys(updatedOrder).filter(k =>
-        updatedOrder[k] === "True" && OPTION_LABELS[k]
-    );
-
-    const isExpanded = expandedOrderId === updatedOrder.id;
-
-    // Fetch progress if expanded
-    if (isExpanded && allowExpand) {
-        const progressRes = await fetch(`/api/orders/${updatedOrder.id}/progress`);
-        const progress = await progressRes.json();
-        orderProgressCache[updatedOrder.id] = progress.map(p => p.ingredient);
-    }
-    const checkedIngredients = orderProgressCache[updatedOrder.id] || [];
-
-    // Build action cells (one or more <td> elements)
-    let actionCells = '';
-    if (updatedOrder.status === 'pending') {
-        actionCells = `<td><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${updatedOrder.id})">Start Preparing</button></td>`;
-    } else if (updatedOrder.status === 'ready') {
-        actionCells = `<td>${new Date(updatedOrder.timestamp).toLocaleTimeString()}</td>`;
-    } else if (updatedOrder.status === 'out_for_delivery') {
-        actionCells = `<td>${updatedOrder.collected_by || ''}</td><td>${updatedOrder.collected_at ? new Date(updatedOrder.collected_at).toLocaleString() : ''}</td>`;
-    } else if (updatedOrder.status === 'delivered') {
-        actionCells = `<td>${updatedOrder.collected_by || updatedOrder.delivered_by || ''}</td><td>${updatedOrder.delivered_at ? new Date(updatedOrder.delivered_at).toLocaleString() : ''}</td>`;
-    } else {
-        actionCells = `<td></td>`;
-    }
-
-    // Render and append new rows
-    const newMainRow = renderOrderRow(updatedOrder, allowExpand, updatedOrder.status, selectedIngredients, actionCells);
-    targetTbody.insertAdjacentHTML('beforeend', newMainRow);
-
-    if (isExpanded && allowExpand) {
-        const newDetailsRow = renderExpandedOrderDetails(updatedOrder, selectedIngredients, checkedIngredients);
-        document.getElementById(`order-main-row-${orderId}`).insertAdjacentHTML('afterend', newDetailsRow);
-    }
+    // When a single order is updated, we simply reload all orders to ensure
+    // consistency across all tabs and their respective counts.
+    await loadOrders();
 }
 
 async function toggleOrder(orderId) {
@@ -421,6 +361,18 @@ async function toggleOrder(orderId) {
 async function renderOrders(orders, tbodyId, allowExpand, status) {
     const tbody = document.getElementById(tbodyId);
     tbody.innerHTML = "";
+    
+    // Update tab count - ensure badge is always created and updated
+    const tabLink = document.getElementById(`${status}-tab`);
+    if (tabLink) {
+        let countBadge = tabLink.querySelector('.badge');
+        if (!countBadge) {
+            countBadge = document.createElement('span');
+            countBadge.classList.add('badge', 'bg-secondary', 'rounded-pill', 'ms-1');
+            tabLink.appendChild(countBadge);
+        }
+        countBadge.textContent = orders.length;
+    }
     
     if (orders.length === 0) {
         // use colspan=5 to cover the widest table (out-for-delivery/delivered)
@@ -447,9 +399,20 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
         // Determine action cells (one or more <td>)
         let actionCells = '';
         if (status === 'pending') {
-            actionCells = `<td><button class="btn btn-primary btn-sm" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button></td>`;
+            actionCells = `<td>
+                            <button class="btn btn-primary btn-sm me-2" onclick="event.stopPropagation(); startOrder(${o.id})">Start Preparing</button>
+                            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); cancelOrder(${o.id})">Cancel</button>
+                           </td>`;
+        } else if (status === 'preparing') {
+            actionCells = `<td>
+                            <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); markReady(${o.id})">Mark Ready</button>
+                            <button class="btn btn-danger btn-sm ms-2" onclick="event.stopPropagation(); cancelOrder(${o.id})">Cancel</button>
+                           </td>`;
         } else if (status === 'ready') {
-            actionCells = `<td>${new Date(o.timestamp).toLocaleTimeString()}</td>`;
+            actionCells = `<td>
+                            ${new Date(o.timestamp).toLocaleTimeString()}
+                            <button class="btn btn-danger btn-sm ms-2" onclick="event.stopPropagation(); cancelOrder(${o.id})">Cancel</button>
+                           </td>`;
         } else if (status === 'out_for_delivery') {
             actionCells = `<td>${o.collected_by || ''}</td><td>${o.collected_at ? new Date(o.collected_at).toLocaleString() : ''}</td>`;
         } else if (status === 'delivered') {
@@ -469,18 +432,66 @@ async function renderOrders(orders, tbodyId, allowExpand, status) {
     }
 }
 
+// Helper to get the currently active tab ID
+function getActiveTabHash() {
+    return window.location.hash ? window.location.hash.substring(1) : 'pending-section';
+}
+
+// Function to set the active tab
+function setActiveTab(targetTabId) {
+    // Deactivate current active tab link and content
+    document.querySelectorAll('.nav-link.active').forEach(link => {
+        link.classList.remove('active');
+        link.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('.tab-pane.show.active').forEach(pane => {
+        pane.classList.remove('show', 'active');
+    });
+
+    // Activate the new tab link
+    const newActiveLink = document.querySelector(`.nav-link[href="#${targetTabId}"]`);
+    if (newActiveLink) {
+        newActiveLink.classList.add('active');
+        newActiveLink.setAttribute('aria-current', 'page');
+    }
+
+    // Activate the new tab content
+    const newActivePane = document.getElementById(targetTabId);
+    if (newActivePane) {
+        newActivePane.classList.add('show', 'active');
+    }
+}
+
+// Initial tab activation on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setActiveTab(getActiveTabHash());
+
+    // Event delegation for tab clicks
+    document.querySelector('.nav-tabs').addEventListener('click', function (event) {
+        const tabLink = event.target.closest('.nav-link');
+        if (tabLink && !tabLink.classList.contains('active')) {
+            event.preventDefault(); // Prevent default Bootstrap behavior
+            const targetId = tabLink.getAttribute('href').substring(1);
+            window.history.pushState(null, '', `#${targetId}`); // Update URL hash without page reload
+            setActiveTab(targetId);
+        }
+    });
+
+    // Listen for browser history changes (back/forward buttons)
+    window.addEventListener('popstate', () => {
+        setActiveTab(getActiveTabHash());
+    });
+});
+
 loadIngredientLabels().then(() => {
     loadOrders();
     const socket = io();
     socket.on('connect', () => {
-        console.log('Connected to socket.io server');
     });
     socket.on('update_orders', () => {
-        console.log('Received general update_orders event');
         loadOrders(); // For general updates not covered by specific order_updated events
     });
     socket.on('order_updated', (data) => {
-        console.log('Received order_updated event for order:', data.order_id);
         updateOrderDisplay(data.order_id);
     });
 });
@@ -488,4 +499,3 @@ loadIngredientLabels().then(() => {
 
 </body>
 </html>
-

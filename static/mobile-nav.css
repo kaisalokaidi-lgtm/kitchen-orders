@@ -1,0 +1,31 @@
+/* static/mobile-nav.css */
+body {
+    padding-bottom: 80px; /* Add padding to the bottom of the body to make space for the nav bar */
+}
+
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    padding: 10px;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.bottom-nav a {
+    color: #0d6efd;
+    text-decoration: none;
+    font-size: 14px;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .bottom-nav {
+        display: none; /* Hide the bottom nav on larger screens */
+    }
+}
