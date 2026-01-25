@@ -166,11 +166,10 @@
             <h4>📦 Your Order Status</h4>
         </div>
         <div class="text-end">
-            <div style="font-size: 2.5rem; font-weight: bold; line-height: 1; color: #0d6efd;">#{{ current_order.order_count }}</div>
+            <div style="font-size: 2.5rem; font-weight: bold; line-height: 1; color: #0d6efd;">#{{ current_order.id }}</div>
             <small class="text-muted">Order Number</small>
         </div>
     </div>
-    <p class="mb-2"><strong>Order ID: <span id="orderId">{{ current_order.id }}</span></strong></p>
     <p class="mb-0" id="statusText">
         Status:
         {% if current_order.status == 'pending' %}
@@ -731,7 +730,7 @@ function renderReadyOrders(orders) {
             <div class="d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-3">
-                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#dc3545' : '#0d6efd'}; min-width: 60px;">#${order.order_count || '1'}</div>
+                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#dc3545' : '#0d6efd'}; min-width: 60px;">#${order.id}</div>
                         <div>
                             <h6 class="mb-1 ${isForDeliveryPerson ? 'text-danger fw-bold' : ''}">${personLabel}</h6>
                             <small class="text-muted">${ingredients || 'No items'}</small>
@@ -766,7 +765,7 @@ function renderMyDeliveries(orders) {
             <div class="d-flex justify-content-between align-items-center">
                 <div class="flex-grow-1">
                     <div class="d-flex align-items-center gap-3">
-                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#198754' : '#0d6efd'}; min-width: 60px;">#${order.order_count || '1'}</div>
+                        <div style="font-size: 2rem; font-weight: bold; color: ${isForDeliveryPerson ? '#198754' : '#0d6efd'}; min-width: 60px;">#${order.id}</div>
                         <div>
                             <h6 class="mb-1 ${isForDeliveryPerson ? 'text-success fw-bold' : ''}">${personLabel}</h6>
                             <small class="text-muted">${ingredients || 'No items'}</small>
